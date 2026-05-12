@@ -1,8 +1,102 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useAtom } from 'jotai'
 import { isAdvancedModeAtom } from './store/atoms'
 import ArmViewer, { type ArmViewerHandle } from './components/ArmViewer'
 import ArmDesignerPanel from './components/arm-designer/ArmDesignerPanel'
+
+// ─── Header Dust ───────────────────────────────────────────────────────────────
+const DUST_COUNT = 90
+
+function HeaderDust() {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')!
+
+    // Resize canvas to match header
+    function resize() {
+      canvas!.width = canvas!.offsetWidth
+      canvas!.height = canvas!.offsetHeight
+    }
+    resize()
+    const ro = new ResizeObserver(resize)
+    ro.observe(canvas)
+
+    // Generate particles with unique orbital params
+    const particles = Array.from({ length: DUST_COUNT }, (_, i) => {
+      const seed = i * 2.399963
+      return {
+        // orbit center (as fraction of canvas dimensions, set at render time)
+        cx: 0.05 + Math.abs(Math.sin(seed * 1.3)) * 0.9,
+        cy: 0.1 + Math.abs(Math.sin(seed * 0.7)) * 0.8,
+        // ellipse semi-axes in px
+        rx: 6 + Math.abs(Math.sin(seed * 2.1)) * 28,
+        ry: 3 + Math.abs(Math.cos(seed * 1.7)) * 14,
+        // orbit speed (rad/s) — different for each
+        speed: (0.12 + Math.abs(Math.sin(seed * 0.9)) * 0.28) * (i % 2 === 0 ? 1 : -1),
+        phase: seed * 6.2832,
+        // wind drift
+        windAmpX: (Math.random() - 0.5) * 18,
+        windAmpY: (Math.random() - 0.5) * 6,
+        windFreq: 0.18 + Math.random() * 0.32,
+        windPhase: Math.random() * 6.2832,
+        // visual
+        r: 0.8 + Math.random() * 1.6,
+        opacity: 0.12 + Math.random() * 0.32,
+      }
+    })
+
+    let raf: number
+    let startTime = performance.now()
+
+    function draw() {
+      const t = (performance.now() - startTime) / 1000
+      const w = canvas!.width
+      const h = canvas!.height
+
+      ctx.clearRect(0, 0, w, h)
+
+      for (const p of particles) {
+        const angle = p.phase + t * p.speed
+        const wx = Math.sin(t * p.windFreq + p.windPhase) * p.windAmpX
+        const wy = Math.cos(t * p.windFreq * 0.7 + p.windPhase) * p.windAmpY
+        const x = p.cx * w + Math.cos(angle) * p.rx + wx
+        const y = p.cy * h + Math.sin(angle) * p.ry + wy
+
+        ctx.beginPath()
+        ctx.arc(x, y, p.r, 0, Math.PI * 2)
+        ctx.fillStyle = `rgba(80,72,64,${p.opacity})`
+        ctx.fill()
+      }
+
+      raf = requestAnimationFrame(draw)
+    }
+
+    draw()
+    return () => {
+      cancelAnimationFrame(raf)
+      ro.disconnect()
+    }
+  }, [])
+
+  return (
+    <canvas
+      ref={canvasRef}
+      aria-hidden="true"
+      style={{
+        position: 'absolute',
+        inset: 0,
+        width: '100%',
+        height: '100%',
+        pointerEvents: 'none',
+        zIndex: 0,
+      }}
+    />
+  )
+}
+// ───────────────────────────────────────────────────────────────────────────────
 
 type NavItem = 'design' | 'tasks' | 'simulate' | 'export'
 const NAV_ITEMS: { id: NavItem; label: string }[] = [
@@ -30,8 +124,9 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <header className="app-header">
-        <nav className="hdr-nav" aria-label="Workflow steps">
+      <header className="app-header" style={{ position: 'relative', overflow: 'hidden' }}>
+        <HeaderDust />
+        <nav className="hdr-nav" aria-label="Workflow steps" style={{ position: 'relative', zIndex: 1 }}>
           {NAV_ITEMS.map(({ id, label }) => (
             <span
               key={id}
@@ -44,12 +139,12 @@ export default function App() {
           ))}
         </nav>
 
-        <div className="hdr-brand">
+        <div className="hdr-brand" style={{ position: 'relative', zIndex: 1 }}>
           <span className="hdr-logo">未来</span>
           <span className="hdr-wordmark">MIRAI</span>
         </div>
 
-        <div className="hdr-right">
+        <div className="hdr-right" style={{ position: 'relative', zIndex: 1 }}>
           <span className="hdr-step">Step 1 of 4</span>
           <button
             className={`hdr-mode${isAdvanced ? ' hdr-mode--detailed' : ''}`}

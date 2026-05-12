@@ -48,7 +48,7 @@ Browser-based AI-powered robot arm simulator that makes robotics accessible to e
 |---|---|---|---|
 | 1 | May 11 | Foundation + 3D Engine | ✅ Scaffold + dependencies + git push complete |
 | 2 | May 12 | Arm Design Studio | ✅ **COMPLETE** — All 12 files created, types defined, atoms/utils/components full stack, React 18 downgrade applied, app live at localhost:5173, TypeScript clean |
-| 3 | May 13 | Task Editor (React Flow) | 🔄 TODAY — Ready to Start |
+| 3 | May 13 | Task Editor (React Flow) | 🔄 IN PROGRESS — Implementation guide written, user coding |
 | 4 | May 14 | Physics Simulation (Rapier) | ⏳ Ready to Start |
 | 5 | May 15 | Gemini AI Integration | ⏳ Ready to Start |
 | 6 | May 16 | Backend + MuJoCo + Export | ⏳ Ready to Start |
@@ -142,21 +142,30 @@ Browser-based AI-powered robot arm simulator that makes robotics accessible to e
 
 ### Day 3 (May 13) — Task Editor (React Flow)
 
-- ❌ React Flow canvas with custom node types
-- ❌ MOVE node — x/y/z/speed inputs + 3D ghost preview in R3F viewport
-- ❌ GRIP node — open/close/force inputs
-- ❌ WAIT node — ms delay input
-- ❌ LOOP node — count + nested blocks
-- ❌ IF node — condition string + then/else branches
-- ❌ Shared contracts — `SceneGraph`, `TaskSpec`, `ValidationReport`, `ExecutionPlan` typed in both frontend and backend
-- ❌ Skill library mapping — `move_to`, `grasp`, `release`, `place`, `stack`, `wait`, `align`
-- ❌ Scene object registry — named objects and target zones for first supported environments
-- ❌ Live 3D ghost arm preview as blocks are placed
-- ❌ Export task as portable JSON file
-- ❌ Error highlighting — red nodes (impossible coords), yellow (near-limit)
-- ❌ Keyboard shortcuts: Ctrl+S (save), Ctrl+Z (undo), Space (simulate), Delete (remove node)
+**Architecture:**
+- `@xyflow/react` v12 (already installed — no new install)
+- `ReactFlowProvider` + inner `FlowEditor` pattern for `useReactFlow()` access
+- Jotai `pendingAddNodeAtom` for palette → canvas click-to-add communication
+- `window.dispatchEvent('mirai:load-task')` for load-from-file → canvas communication
+- `ghostArmTargetAtom` pre-wired — consumed by ArmViewer on Day 4
 
-**Deliverable:** Visual task programmer that exports valid task JSON.
+**New files to implement:**
+- ❌ `src/types/task.ts` — SceneGraph, TaskSpec, TaskBlock, ValidationReport, ExecutionPlan
+- ❌ `src/utils/sceneRegistry.ts` — default scene objects + target zones
+- ❌ `src/store/taskAtoms.ts` — taskNodes, taskEdges, pendingAddNode, ghostArmTarget
+- ❌ `src/utils/taskValidation.ts` — validateTask() pure function
+- ❌ `src/utils/taskExport.ts` — exportTaskJson(), parseTaskJson(), loadTaskFromFile()
+- ❌ `src/components/task-editor/nodes/` — 7 node types (Start, End, Move, Grip, Wait, Loop, If)
+- ❌ `src/components/task-editor/NodePalette.tsx`
+- ❌ `src/components/task-editor/TaskEditorPanel.tsx`
+- ❌ `src/components/task-editor/TaskFlowCanvas.tsx`
+
+**Modified files:**
+- ❌ `src/main.tsx` — add `@xyflow/react/dist/style.css` import
+- ❌ `src/App.tsx` — TaskEditorPanel + TaskFlowCanvas wired into tasks nav
+- ❌ `src/App.css` — task-*, palette-*, flow-* styles appended
+
+**Deliverable:** Visual task programmer with 7 node types, validation, drag-to-add palette, Ctrl+S export, Ctrl+Z undo, portable JSON download.
 
 ### Day 4 (May 14) — Physics Simulation (Rapier WASM)
 

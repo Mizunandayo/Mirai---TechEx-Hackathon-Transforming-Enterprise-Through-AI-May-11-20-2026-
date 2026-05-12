@@ -1,5 +1,5 @@
 # Mirai — Session Context
-**Last updated:** Tuesday, May 12, 2026 — Day 2 complete + extended UX polish. Day 3 starts next.
+**Last updated:** Tuesday, May 12, 2026 — Day 3 implementation guide written. User to implement.
 
 ---
 
@@ -108,15 +108,50 @@
 - ✅ BOM expanded layout: parts list at top, Estimated cost row at bottom, redundant total row removed
 - ✅ Panel right-edge drag-to-resize (min 336px · max 560px · no-transition while dragging · body cursor lock)
 
-## Next Up — Day 3 (Task Editor)
-1. Install reactflow: `npm install reactflow --legacy-peer-deps`
-2. Create `src/types/task.ts` — SceneGraph, TaskSpec, ValidationReport, ExecutionPlan
-3. Create `src/store/taskAtoms.ts` — taskBlocks, selectedBlockId, sceneObjects
-4. Build React Flow canvas with custom MOVE / GRIP / WAIT / LOOP / IF node types
-5. Wire live 3D ghost preview in ArmViewer as blocks are placed
-6. Export task as portable JSON
-7. Add error highlighting (red = impossible, yellow = near-limit)
-8. Add keyboard shortcuts: Ctrl+S, Ctrl+Z, Space, Delete
+## Next Up — Day 3 (Task Editor) — IMPLEMENTATION GUIDE PROVIDED
+
+### Architecture decisions confirmed:
+- Package `@xyflow/react` v12.3.2 (already installed — NO new install needed)
+- CSS import: `import '@xyflow/react/dist/style.css'` in `main.tsx` (before App.css)
+- Pattern: `ReactFlowProvider` outer wrapper + `FlowEditor` inner component (useReactFlow() works)
+- State sync: React Flow local state → Jotai atoms on every change → validation runs
+- Cross-component comms: `pendingAddNodeAtom` (palette → canvas click-to-add)
+- Load comms: `window.dispatchEvent(new CustomEvent('mirai:load-task', ...))` (panel → canvas)
+- Ghost arm: `ghostArmTargetAtom` pre-wired, consumed by ArmViewer Day 4
+- History: `useRef` stack (20 entries max), Ctrl+Z undo
+- Keyboard: Ctrl+S export, Ctrl+Z undo, Delete (React Flow native)
+
+### New files to create (in order):
+1. `src/types/task.ts`
+2. `src/utils/sceneRegistry.ts`
+3. `src/store/taskAtoms.ts`
+4. `src/utils/taskValidation.ts`
+5. `src/utils/taskExport.ts`
+6. `src/components/task-editor/nodes/StartNode.tsx`
+7. `src/components/task-editor/nodes/EndNode.tsx`
+8. `src/components/task-editor/nodes/MoveNode.tsx`
+9. `src/components/task-editor/nodes/GripNode.tsx`
+10. `src/components/task-editor/nodes/WaitNode.tsx`
+11. `src/components/task-editor/nodes/LoopNode.tsx`
+12. `src/components/task-editor/nodes/IfNode.tsx`
+13. `src/components/task-editor/NodePalette.tsx`
+14. `src/components/task-editor/TaskEditorPanel.tsx`
+15. `src/components/task-editor/TaskFlowCanvas.tsx`
+
+### Modified files:
+- `src/main.tsx` — add `import '@xyflow/react/dist/style.css'` before local CSS
+- `src/App.tsx` — import TaskEditorPanel + TaskFlowCanvas; update handleNavClick; swap viewport content when activeNav==='tasks'; update step counter + status bar
+- `src/App.css` — append ~350 lines of task-*, palette-*, flow-* styles at bottom
+
+### Node type → accent color mapping:
+- start: #0d0d0d | end: #374151 | move: #1d4ed8 | grip: #15803d | wait: #b45309 | loop: #6d28d9 | if: #b91c1c
+
+### TaskSpec JSON schema (v1.0) is the canonical contract for:
+- Day 5: Gemini `/ai/plan` output
+- Day 6: Jinja2 code export input + MuJoCo validator input
+
+### Scene objects registered in sceneRegistry.ts:
+table, box-a, box-b, cylinder-a, shelf, drawer + 3 target zones (zone-shelf, zone-drawer, zone-table-center)
 
 ---
 
