@@ -48,14 +48,14 @@ Browser-based AI-powered robot arm simulator that makes robotics accessible to e
 |---|---|---|---|
 | 1 | May 11 | Foundation + 3D Engine | ✅ Scaffold + dependencies + git push complete |
 | 2 | May 12 | Arm Design Studio | ✅ **COMPLETE** — All 12 files created, types defined, atoms/utils/components full stack, React 18 downgrade applied, app live at localhost:5173, TypeScript clean |
-| 3 | May 13 | Task Editor (React Flow) | 🔄 IN PROGRESS — Implementation guide written, user coding |
+| 3 | May 13 | Task Editor (React Flow) | ✅ **COMPLETE** — All 14 files created, 7 node types, palette, canvas, deletable edges, validation, Ctrl+S export, Ctrl+Z undo, TypeScript clean |
 | 4 | May 14 | Physics Simulation (Rapier) | ⏳ Ready to Start |
 | 5 | May 15 | Gemini AI Integration | ⏳ Ready to Start |
 | 6 | May 16 | Backend + MuJoCo + Export | ⏳ Ready to Start |
 | 7 | May 17 | Community + Famous Preloads | ⏳ Ready to Start |
 | 8 | May 18–19 | Polish + Demo Prep + Submit | ⏳ Ready to Start |
 
-**STATUS:** Day 1 and Day 2 both complete (incl. extended polish: nav toggle, camera reset, hint, BOM expanded layout, panel drag-resize). App live at localhost:5173. TypeScript clean. Day 3 (Task Editor) starts next.
+**STATUS:** Days 1–3 complete. App live at localhost:5173. TypeScript clean. Day 4 (Physics Simulation) starts next.
 
 ---
 
@@ -140,7 +140,7 @@ Browser-based AI-powered robot arm simulator that makes robotics accessible to e
 - ✅ `src/components/arm-designer/BOMCounter.tsx` — when expanded: `bom-breakdown` (parts list) shows at top, `bom-summary` (Estimated cost row) moves to bottom via CSS `order`; `bom-total-row` removed
 - ✅ `src/components/arm-designer/ArmDesignerPanel.tsx` + `src/App.css` — panel right-edge drag-to-resize: `panel-resize-handle` with pointer capture, min `336px`, max `560px`, no-transition while dragging
 
-### Day 3 (May 13) — Task Editor (React Flow)
+### Day 3 (May 13) — Task Editor (React Flow) ✅ COMPLETE
 
 **Architecture:**
 - `@xyflow/react` v12 (already installed — no new install)
@@ -149,23 +149,37 @@ Browser-based AI-powered robot arm simulator that makes robotics accessible to e
 - `window.dispatchEvent('mirai:load-task')` for load-from-file → canvas communication
 - `ghostArmTargetAtom` pre-wired — consumed by ArmViewer on Day 4
 
-**New files to implement:**
-- ❌ `src/types/task.ts` — SceneGraph, TaskSpec, TaskBlock, ValidationReport, ExecutionPlan
-- ❌ `src/utils/sceneRegistry.ts` — default scene objects + target zones
-- ❌ `src/store/taskAtoms.ts` — taskNodes, taskEdges, pendingAddNode, ghostArmTarget
-- ❌ `src/utils/taskValidation.ts` — validateTask() pure function
-- ❌ `src/utils/taskExport.ts` — exportTaskJson(), parseTaskJson(), loadTaskFromFile()
-- ❌ `src/components/task-editor/nodes/` — 7 node types (Start, End, Move, Grip, Wait, Loop, If)
-- ❌ `src/components/task-editor/NodePalette.tsx`
-- ❌ `src/components/task-editor/TaskEditorPanel.tsx`
-- ❌ `src/components/task-editor/TaskFlowCanvas.tsx`
+**New files created:**
+- ✅ `src/types/task.ts` — SceneGraph, TaskSpec, TaskBlock, ValidationReport, ExecutionPlan; `BaseBlock extends Record<string, unknown>` for @xyflow/react v12 constraint
+- ✅ `src/utils/sceneRegistry.ts` — default scene objects + target zones
+- ✅ `src/store/taskAtoms.ts` — taskNodes, taskEdges, pendingAddNode, ghostArmTarget, selectedNodeId
+- ✅ `src/utils/taskValidation.ts` — validateTask() pure function
+- ✅ `src/utils/taskExport.ts` — exportTaskJson(), parseTaskJson(), loadTaskFromFile()
+- ✅ `src/components/task-editor/nodes/StartNode.tsx` — start node (no delete button, always required)
+- ✅ `src/components/task-editor/nodes/EndNode.tsx` — end node with delete button
+- ✅ `src/components/task-editor/nodes/MoveNode.tsx` — target preset, XYZ coords, speed slider, approach select; delete + issue icons
+- ✅ `src/components/task-editor/nodes/GripNode.tsx` — open/close semantic toggle (green/red), force slider; delete button
+- ✅ `src/components/task-editor/nodes/WaitNode.tsx` — duration ms number input; delete button
+- ✅ `src/components/task-editor/nodes/LoopNode.tsx` — repeat count stepper; delete button
+- ✅ `src/components/task-editor/nodes/IfNode.tsx` — condition text input, dual then/else handles; delete button
+- ✅ `src/components/task-editor/DeletableEdge.tsx` — custom edge with ×  button at midpoint (hover-reveal + selected-reveal), `interactionWidth: 20`
+- ✅ `src/components/task-editor/NodePalette.tsx` — drag-to-canvas + click-to-add, 6 block types
+- ✅ `src/components/task-editor/TaskEditorPanel.tsx` — task name, description, palette, validation footer
+- ✅ `src/components/task-editor/TaskFlowCanvas.tsx` — ReactFlowProvider + FlowEditor, NODE_TYPES, EDGE_TYPES, 20-step undo history, Ctrl+S export, Ctrl+Z undo, drag-drop, fit-view, Background + Controls
 
 **Modified files:**
-- ❌ `src/main.tsx` — add `@xyflow/react/dist/style.css` import
-- ❌ `src/App.tsx` — TaskEditorPanel + TaskFlowCanvas wired into tasks nav
-- ❌ `src/App.css` — task-*, palette-*, flow-* styles appended
+- ✅ `src/main.tsx` — added `import '@xyflow/react/dist/style.css'` before local CSS
+- ✅ `src/App.tsx` — TaskEditorPanel + TaskFlowCanvas wired into tasks nav; STEP_MAP; STATUS_MAP; step counter in header
+- ✅ `src/App.css` — task-*, palette-*, flow-*, task-edge-* styles appended; dot-indicator node design (no left border); semantic toggle colors; edge delete button
 
-**Deliverable:** Visual task programmer with 7 node types, validation, drag-to-add palette, Ctrl+S export, Ctrl+Z undo, portable JSON download.
+**UX polish applied during session:**
+- ✅ All node bodies use `nodrag` class — only the header stripe initiates node drag
+- ✅ Force slider uses `nodrag` — no React Flow drag hijacking
+- ✅ Delete (×) button on every deletable node header — `deleteElements` via useReactFlow
+- ✅ GripNode open/close: green active (`#15803d`) / red active (`#991b1b`)
+- ✅ Edge delete: transparent 36×36 hit zone at midpoint, fades in on hover or edge selection
+
+**Deliverable:** Visual task programmer with 7 node types, validation, drag-to-add palette, deletable edges, Ctrl+S export, Ctrl+Z undo, portable JSON download.
 
 ### Day 4 (May 14) — Physics Simulation (Rapier WASM)
 
@@ -246,6 +260,12 @@ Browser-based AI-powered robot arm simulator that makes robotics accessible to e
 - ❌ Tesla Optimus box-stacking task
 - ❌ Toyota laundry folding task
 
+**Real Robot Arm Presets (~2h) — Visual upgrade:**
+- ❌ Load 2–3 free `.glb` mesh files (UR5, KUKA KR6 — CC-licensed from Sketchfab)
+- ❌ "Real Robot" skin toggle in arm designer — replaces procedural mesh, keeps all joint/segment data
+- ❌ Gemini adapts community task to the selected real arm's actual joint limits
+- ❌ Demo moment: switch from custom builder view → KUKA mesh → same task plays on real geometry
+
 **Quality:**
 - ❌ Full E2E test: design → voice → pre-flight → simulate → side-by-side → export → QR
 - ❌ 60fps confirmed on mid-range hardware
@@ -281,7 +301,7 @@ Browser-based AI-powered robot arm simulator that makes robotics accessible to e
 
 | Layer | Technology | Version | Notes |
 |---|---|---|---|
-| Frontend | React + TypeScript strict | 19 / 6.0 | |
+| Frontend | React + TypeScript strict | **18.3.1** / 6.0 | Downgraded from 19 for R3F v8 compat |
 | 3D | React Three Fiber + @react-three/drei | 8.16 / 9.120 | |
 | Client physics | @react-three/rapier (Rapier WASM) | 0.12 | 60fps in-browser |
 | Server physics | MuJoCo | 3.x | Server-side validation only |
@@ -306,8 +326,8 @@ mirai/
 ├── CLAUDE.md                    # This file
 ├── MIRAI_BLUEPRINT.md           # Full design blueprint (v2.0)
 ├── MIRAI_SESSION_CONTEXT.md     # Session context / operational notes
-├── package.json                 # All frontend deps declared (npm install NOT yet run)
-├── vite.config.js               # Vite 7, port 5173 strictPort, TailwindCSS via postcss
+├── package.json                 # All frontend deps, npm install ✅
+├── vite.config.js               # Vite 7, port 5173 strictPort, @tailwindcss/vite plugin
 ├── tsconfig.json                # TypeScript strict
 ├── tailwind.config.js           # Tailwind config
 ├── index.html                   # Entry HTML
@@ -318,14 +338,48 @@ mirai/
 │   ├── main.py                  # FastAPI skeleton — CORS, health check, Gemini key check
 │   └── requirements.txt         # fastapi, uvicorn, mujoco>=3.1.0, google-generativeai, jinja2, sqlalchemy...
 └── src/
-    ├── App.tsx                  # Root component — ArmViewer mounted, gray-900 layout
-    ├── App.css
-    ├── main.tsx                 # React entry point
-    ├── components/
-    │   ├── ArmViewer.tsx        # R3F Canvas, OrbitControls (autoRotate), Physics wrapper, Grid, lights
-    │   └── RobotArm.tsx         # Static 3-segment arm: base cylinder + 2 boxes + end-effector sphere
-    └── store/
-        └── atoms.ts             # Jotai atoms: armSegments(3), gripper, taskBlocks, simulationFrames, community, gemini
+    ├── App.tsx                  # 3-zone layout: header + panel + viewport + statusbar; nav wires Design/Tasks
+    ├── App.css                  # Full design system (~1,550+ lines): hdr-*, panel-*, task-*, palette-*, flow-*
+    ├── main.tsx                 # React entry + @xyflow/react CSS import
+    ├── index.css                # @import tailwindcss + @theme tokens
+    ├── vite-env.d.ts            # React 18 JSX augmentation for R3F
+    ├── types/
+    │   ├── arm.ts               # ArmSegment, GripperConfig, BOMItem, ValidationResult, ArmConfig
+    │   └── task.ts              # SceneGraph, TaskSpec, TaskBlock, ValidationReport, ExecutionPlan
+    ├── store/
+    │   ├── atoms.ts             # Jotai atoms: armSegments, armGripper, selectedSegmentId, isAdvancedMode, etc.
+    │   └── taskAtoms.ts         # taskNodes, taskEdges, pendingAddNode, ghostArmTarget, selectedNodeId
+    ├── utils/
+    │   ├── armPhysics.ts        # calculateMaxReach, calculateTorqueAtJoint, validateArm
+    │   ├── bomPricing.ts        # calculateBOM, getTotalBOMCost (72-piece BOM)
+    │   ├── armExport.ts         # exportArmConfig, parseArmConfig, loadArmConfigFromFile
+    │   ├── sceneRegistry.ts     # Default scene objects + target zones
+    │   ├── taskValidation.ts    # validateTask() pure function
+    │   └── taskExport.ts        # exportTaskJson, parseTaskJson, loadTaskFromFile
+    └── components/
+        ├── ArmViewer.tsx        # R3F Canvas, forwardRef, resetCamera(), lights, shadows, overlays
+        ├── RobotArm.tsx         # Industrial arm: JointHousing, SegmentGroup (useFrame pulse), 3 gripper types
+        ├── ReachEnvelope.tsx    # Wireframe reach sphere + 80% inner reference
+        ├── JointArcOverlay.tsx  # Orange joint arc + fill
+        ├── arm-designer/
+        │   ├── ArmDesignerPanel.tsx  # Topbar + toolbar + content + drag-resize handle
+        │   ├── SegmentList.tsx       # Add/remove/edit segments with sliders
+        │   ├── GripperLibrary.tsx    # 3 gripper types: parallel jaw / suction cup / magnetic
+        │   ├── ValidationPanel.tsx   # Torque/reach metrics + errors/warnings
+        │   └── BOMCounter.tsx        # Live cost + collapsible BOM breakdown
+        └── task-editor/
+            ├── DeletableEdge.tsx     # Custom edge with × delete button at midpoint
+            ├── NodePalette.tsx       # Drag-to-canvas + click-to-add, 6 block types
+            ├── TaskEditorPanel.tsx   # Task name, description, palette, validation footer
+            ├── TaskFlowCanvas.tsx    # ReactFlowProvider + FlowEditor, NODE_TYPES, EDGE_TYPES, undo history
+            └── nodes/
+                ├── StartNode.tsx     # Start (no delete, always required)
+                ├── EndNode.tsx       # End with delete button
+                ├── MoveNode.tsx      # Target, XYZ, speed, approach; delete + issue icons
+                ├── GripNode.tsx      # Open/close toggle (green/red), force slider; delete
+                ├── WaitNode.tsx      # Duration ms input; delete
+                ├── LoopNode.tsx      # Repeat count stepper; delete
+                └── IfNode.tsx        # Condition input, then/else handles; delete
 ```
 
 **Files that can be deleted:**
@@ -338,22 +392,27 @@ mirai/
 
 | Component | Status | Notes |
 |---|---|---|
-| package.json | ✅ Complete | All deps declared |
-| npm install | ❌ NOT RUN | Run `npm install --legacy-peer-deps` first |
-| vite.config.js | ✅ Created | Port 5173 |
-| tsconfig.json | ✅ Created | Strict mode |
-| tailwind.config.js | ✅ Created | |
-| index.html | ✅ Created | |
-| src/App.tsx | ✅ Scaffold | ArmViewer mounted, needs full layout |
-| src/App.css | ✅ Exists | |
-| src/store/atoms.ts | ✅ Scaffold | Placeholder atoms — need proper typing + isAdvancedModeAtom |
-| src/components/ArmViewer.tsx | ✅ Scaffold | R3F canvas works, Physics disabled for now |
-| src/components/RobotArm.tsx | ✅ Scaffold | Static mesh — not interactive yet |
-| server/main.py | ✅ Scaffold | Health check only — no AI endpoints yet |
+| package.json | ✅ Complete | All deps installed |
+| npm install | ✅ Done | `--legacy-peer-deps` (reactflow v12 / React 18 conflict) |
+| vite.config.js | ✅ Done | @tailwindcss/vite plugin, port 5173 strictPort |
+| tsconfig.json | ✅ Done | Strict mode |
+| tailwind.config.js | ✅ Done | |
+| index.html | ✅ Done | |
+| src/App.tsx | ✅ Complete | 3-zone layout, Design + Tasks nav wired |
+| src/App.css | ✅ Complete | ~1,550+ lines, full design system |
+| src/store/atoms.ts | ✅ Complete | Fully typed Jotai atoms |
+| src/store/taskAtoms.ts | ✅ Complete | Task editor atoms |
+| src/types/arm.ts | ✅ Complete | ArmSegment, GripperConfig, BOMItem, ArmConfig |
+| src/types/task.ts | ✅ Complete | SceneGraph, TaskSpec, TaskBlock, ExecutionPlan |
+| src/components/ArmViewer.tsx | ✅ Complete | forwardRef + resetCamera(), lights, shadows |
+| src/components/RobotArm.tsx | ✅ Complete | Industrial redesign: JointHousing, useFrame animations, 3 grippers |
+| src/components/arm-designer/* | ✅ Complete | 5 panel components all wired |
+| src/components/task-editor/* | ✅ Complete | 15 files: 7 node types, palette, canvas, deletable edges |
+| server/main.py | ✅ Scaffold | Health check only — no AI endpoints yet (Day 5) |
 | server/requirements.txt | ✅ Complete | MuJoCo 3.x included |
-| pip install | ❌ NOT RUN | |
-| git init + push | ❌ NOT RUN | |
-| App renders in browser | ❌ UNTESTED | Blocked by npm install |
+| pip install | ✅ Done | |
+| git init + push | ✅ Done | github.com/Mizunandayo/mirai |
+| App renders in browser | ✅ Live | localhost:5173, TypeScript clean |
 
 ---
 

@@ -1,159 +1,269 @@
 import { useAtom, useAtomValue } from 'jotai'
 import { useMemo, useRef } from 'react'
-import type { Group } from 'three'
+import { useFrame } from '@react-three/fiber'
+import type { Group, MeshStandardMaterial } from 'three'
+import type { ArmSegment } from '../types/arm'
 import { armSegmentsAtom, armGripperAtom, selectedSegmentIdAtom } from '../store/atoms'
 
-/** Joint sphere between segments */
-function JointSphere({ position }: { position: [number, number, number] }) {
+// ── Color palette (industrial robot arm) ────────────────────────────────────
+const C = {
+  linkAlum:  '#c2c6ce',
+  baseAlum:  '#93979f',
+  jointBody: '#18191c',
+  jointAxle: '#46494f',
+  jointRim:  '#2e3035',
+  waist:     '#1c1d20',
+  plate:     '#6a6e76',
+  plateLip:  '#555860',
+  gripBody:  '#2e3137',
+  gripRail:  '#505560',
+  gripJaw:   '#3a3d43',
+  gripPad:   '#161820',
+  led:       '#22c55e',
+}
+
+const MAT_ALUM  = { metalness: 0.62, roughness: 0.28 } as const
+const MAT_STEEL = { metalness: 0.78, roughness: 0.16 } as const
+const MAT_CAST  = { metalness: 0.52, roughness: 0.42 } as const
+const MAT_RUBB  = { metalness: 0.02, roughness: 0.88 } as const
+
+function JointHousing({ y, r = 0.065 }: { y: number; r?: number }) {
   return (
-    <mesh position={position}>
-      <sphereGeometry args={[0.045, 16, 16]} />
-      <meshStandardMaterial color="#6c6258" metalness={0.38} roughness={0.54} />
-    </mesh>
+    <group position={[0, y, 0]}>
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[r, r, 0.058, 32]} />
+        <meshStandardMaterial color={C.jointBody} {...MAT_STEEL} />
+      </mesh>
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[r + 0.007, r + 0.007, 0.010, 32]} />
+        <meshStandardMaterial color={C.jointRim} {...MAT_STEEL} />
+      </mesh>
+      <mesh position={[-(r + 0.014), 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[r * 0.42, r * 0.42, 0.018, 18]} />
+        <meshStandardMaterial color={C.jointAxle} metalness={0.65} roughness={0.30} />
+      </mesh>
+      <mesh position={[r + 0.014, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[r * 0.42, r * 0.42, 0.018, 18]} />
+        <meshStandardMaterial color={C.jointAxle} metalness={0.65} roughness={0.30} />
+      </mesh>
+    </group>
   )
 }
 
-/** Parallel jaw gripper end-effector */
-function ParallelJawGripper({ yOffset, width }: { yOffset: number; width: number }) {
+function SegmentGroup({
+  seg, yBase, isSelected, onSelect,
+}: {
+  seg: ArmSegment
+  yBase: number
+  isSelected: boolean
+  onSelect: () => void
+}) {
+  const mainRef = useRef<MeshStandardMaterial>(null)
+  const capRef  = useRef<MeshStandardMaterial>(null)
+  const isBase  = seg.joint === 'fixed'
+  const yCenter = yBase + seg.length / 2
+
+  useFrame(({ clock }) => {
+    const intensity = isSelected
+      ? 0.12 + Math.sin(clock.elapsedTime * 2.8) * 0.08
+      : 0
+    if (mainRef.current) mainRef.current.emissiveIntensity = intensity
+    if (capRef.current)  capRef.current.emissiveIntensity  = intensity
+  })
+
+  return (
+    <group>
+      {!isBase && <JointHousing y={yBase} />}
+      <mesh
+        position={[0, yCenter, 0]}
+        castShadow
+        onClick={(e: { stopPropagation: () => void }) => {
+          e.stopPropagation()
+          onSelect()
+        }}
+      >
+        {isBase
+          ? <cylinderGeometry args={[0.100, 0.130, seg.length, 22]} />
+          : <boxGeometry args={[0.062, Math.max(seg.length - 0.046, 0.01), 0.062]} />
+        }
+        <meshStandardMaterial
+          ref={mainRef}
+          color={isSelected ? '#cf7a5a' : (isBase ? C.baseAlum : C.linkAlum)}
+          emissive="#cf7a5a"
+          emissiveIntensity={0}
+          metalness={isBase ? MAT_CAST.metalness : MAT_ALUM.metalness}
+          roughness={isBase ? MAT_CAST.roughness : MAT_ALUM.roughness}
+        />
+      </mesh>
+      {!isBase && (
+        <mesh position={[0, yBase + seg.length - 0.015, 0]}>
+          <boxGeometry args={[0.072, 0.022, 0.072]} />
+          <meshStandardMaterial
+            ref={capRef}
+            color={isSelected ? '#cf7a5a' : '#4e525a'}
+            emissive="#cf7a5a"
+            emissiveIntensity={0}
+            metalness={0.70}
+            roughness={0.20}
+          />
+        </mesh>
+      )}
+    </group>
+  )
+}
+
+function ParallelJawGripper({ yTop, width }: { yTop: number; width: number }) {
   const hw = width / 2
   return (
-    <group position={[0, yOffset + 0.06, 0]}>
-      {/* Palm */}
-      <mesh>
-        <boxGeometry args={[0.12, 0.06, 0.06]} />
-        <meshStandardMaterial color="#7b7066" metalness={0.32} roughness={0.48} />
+    <group position={[0, yTop, 0]}>
+      <mesh position={[0, 0.016, 0]}>
+        <cylinderGeometry args={[0.076, 0.076, 0.032, 24]} />
+        <meshStandardMaterial color={C.waist} {...MAT_STEEL} />
       </mesh>
-      {/* Left finger */}
-      <mesh position={[-hw - 0.01, 0.06, 0]}>
-        <boxGeometry args={[0.02, 0.08, 0.025]} />
-        <meshStandardMaterial color="#b56748" emissive="#e7c4b5" emissiveIntensity={0.08} />
+      <mesh position={[0, -0.010, 0]}>
+        <boxGeometry args={[hw * 2 + 0.044, 0.038, 0.066]} />
+        <meshStandardMaterial color={C.gripBody} {...MAT_ALUM} />
       </mesh>
-      {/* Right finger */}
-      <mesh position={[hw + 0.01, 0.06, 0]}>
-        <boxGeometry args={[0.02, 0.08, 0.025]} />
-        <meshStandardMaterial color="#b56748" emissive="#e7c4b5" emissiveIntensity={0.08} />
+      <mesh position={[-hw * 0.74, -0.048, 0]}>
+        <cylinderGeometry args={[0.0085, 0.0085, 0.056, 10]} />
+        <meshStandardMaterial color={C.gripRail} {...MAT_STEEL} />
+      </mesh>
+      <mesh position={[hw * 0.74, -0.048, 0]}>
+        <cylinderGeometry args={[0.0085, 0.0085, 0.056, 10]} />
+        <meshStandardMaterial color={C.gripRail} {...MAT_STEEL} />
+      </mesh>
+      <mesh position={[-(hw + 0.008), -0.050, 0]}>
+        <boxGeometry args={[0.026, 0.060, 0.042]} />
+        <meshStandardMaterial color={C.gripJaw} {...MAT_ALUM} />
+      </mesh>
+      <mesh position={[hw + 0.008, -0.050, 0]}>
+        <boxGeometry args={[0.026, 0.060, 0.042]} />
+        <meshStandardMaterial color={C.gripJaw} {...MAT_ALUM} />
+      </mesh>
+      <mesh position={[-(hw + 0.008), -0.090, 0]}>
+        <boxGeometry args={[0.020, 0.024, 0.032]} />
+        <meshStandardMaterial color={C.gripPad} {...MAT_RUBB} />
+      </mesh>
+      <mesh position={[hw + 0.008, -0.090, 0]}>
+        <boxGeometry args={[0.020, 0.024, 0.032]} />
+        <meshStandardMaterial color={C.gripPad} {...MAT_RUBB} />
       </mesh>
     </group>
   )
 }
 
-/** Suction cup end-effector */
-function SuctionGripper({ yOffset }: { yOffset: number }) {
+function SuctionGripper({ yTop }: { yTop: number }) {
   return (
-    <group position={[0, yOffset + 0.06, 0]}>
-      <mesh>
-        <cylinderGeometry args={[0.04, 0.04, 0.08, 16]} />
-        <meshStandardMaterial color="#7d756d" metalness={0.24} roughness={0.52} />
+    <group position={[0, yTop, 0]}>
+      <mesh position={[0, 0.016, 0]}>
+        <cylinderGeometry args={[0.060, 0.060, 0.032, 24]} />
+        <meshStandardMaterial color={C.waist} {...MAT_STEEL} />
       </mesh>
-      <mesh position={[0, -0.04, 0]}>
-        <sphereGeometry args={[0.05, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
-        <meshStandardMaterial color="#d9e3ec" transparent opacity={0.75} />
+      <mesh position={[0, -0.008, 0]}>
+        <cylinderGeometry args={[0.038, 0.043, 0.040, 20]} />
+        <meshStandardMaterial color={C.gripBody} {...MAT_ALUM} />
+      </mesh>
+      <mesh position={[0, -0.038, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.032, 0.009, 8, 24]} />
+        <meshStandardMaterial color="#1c1e22" {...MAT_RUBB} />
+      </mesh>
+      <mesh position={[0, -0.054, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.027, 0.009, 8, 24]} />
+        <meshStandardMaterial color="#1c1e22" {...MAT_RUBB} />
+      </mesh>
+      <mesh position={[0, -0.070, 0]}>
+        <cylinderGeometry args={[0.042, 0.042, 0.012, 24]} />
+        <meshStandardMaterial color="#141618" {...MAT_RUBB} />
       </mesh>
     </group>
   )
 }
 
-/** Magnetic end-effector */
-function MagneticGripper({ yOffset }: { yOffset: number }) {
+function MagneticGripper({ yTop }: { yTop: number }) {
   return (
-    <group position={[0, yOffset + 0.04, 0]}>
-      <mesh>
-        <cylinderGeometry args={[0.06, 0.06, 0.04, 16]} />
-        <meshStandardMaterial color="#6c6760" emissive="#d7d0c7" emissiveIntensity={0.06} metalness={0.36} roughness={0.42} />
+    <group position={[0, yTop, 0]}>
+      <mesh position={[0, 0.016, 0]}>
+        <cylinderGeometry args={[0.068, 0.068, 0.032, 24]} />
+        <meshStandardMaterial color={C.waist} {...MAT_STEEL} />
+      </mesh>
+      <mesh position={[0, -0.014, 0]}>
+        <cylinderGeometry args={[0.070, 0.075, 0.050, 32]} />
+        <meshStandardMaterial color={C.gripBody} {...MAT_ALUM} />
+      </mesh>
+      <mesh position={[0, -0.041, 0]}>
+        <cylinderGeometry args={[0.060, 0.060, 0.008, 24]} />
+        <meshStandardMaterial color="#14161a" metalness={0.84} roughness={0.10} />
+      </mesh>
+      <mesh position={[0.052, 0, 0]}>
+        <sphereGeometry args={[0.007, 8, 8]} />
+        <meshStandardMaterial color={C.led} emissive={C.led} emissiveIntensity={0.85} roughness={0.30} />
       </mesh>
     </group>
   )
 }
 
 export default function RobotArm() {
-  const groupRef = useRef<Group>(null)
+  const waistRef = useRef<Group>(null)
   const segments = useAtomValue(armSegmentsAtom)
-  const gripper = useAtomValue(armGripperAtom)
+  const gripper  = useAtomValue(armGripperAtom)
   const [selectedId, setSelectedId] = useAtom(selectedSegmentIdAtom)
 
-  // Compute cumulative Y positions for each segment
+  useFrame(({ clock }) => {
+    if (waistRef.current) {
+      waistRef.current.rotation.y = Math.sin(clock.elapsedTime * 0.14) * 0.022
+    }
+  })
+
   const segmentPositions = useMemo(() => {
-    const positions: number[] = []
+    const pos: number[] = []
     let y = 0
-    segments.forEach((seg) => {
-      positions.push(y)
-      y += seg.length
-    })
-    return positions
+    segments.forEach((seg) => { pos.push(y); y += seg.length })
+    return pos
   }, [segments])
 
   const totalHeight = segments.reduce((sum, s) => sum + s.length, 0)
 
   return (
-    <group ref={groupRef}>
-      {/* Ground mount plate */}
-      <mesh position={[0, -0.025, 0]} receiveShadow>
-        <cylinderGeometry args={[0.22, 0.24, 0.05, 32]} />
-        <meshStandardMaterial color="#cbbba9" metalness={0.4} roughness={0.46} />
+    <group>
+      <mesh position={[0, -0.026, 0]} receiveShadow>
+        <cylinderGeometry args={[0.250, 0.270, 0.052, 36]} />
+        <meshStandardMaterial color={C.plate} {...MAT_CAST} />
+      </mesh>
+      <mesh position={[0, -0.001, 0]}>
+        <cylinderGeometry args={[0.172, 0.192, 0.008, 36]} />
+        <meshStandardMaterial color={C.plateLip} metalness={0.62} roughness={0.34} />
       </mesh>
 
-      {/* Segments */}
-      {segments.map((seg, i) => {
-        const yBase = segmentPositions[i]
-        const yCenter = yBase + seg.length / 2
-        const isSelected = seg.id === selectedId
-        const isBase = seg.joint === 'fixed'
+      <group ref={waistRef}>
+        <mesh position={[0, 0.022, 0]}>
+          <cylinderGeometry args={[0.145, 0.155, 0.044, 36]} />
+          <meshStandardMaterial color={C.waist} {...MAT_STEEL} />
+        </mesh>
+        <mesh position={[0, 0.045, 0]}>
+          <cylinderGeometry args={[0.152, 0.160, 0.012, 36]} />
+          <meshStandardMaterial color={C.jointRim} {...MAT_STEEL} />
+        </mesh>
 
-        return (
-          <group key={seg.id}>
-            {/* Joint indicator (skip base) */}
-            {i > 0 && (
-              <JointSphere position={[0, yBase, 0]} />
-            )}
+        {segments.map((seg, i) => (
+          <SegmentGroup
+            key={seg.id}
+            seg={seg}
+            yBase={segmentPositions[i]}
+            isSelected={seg.id === selectedId}
+            onSelect={() => setSelectedId(seg.id === selectedId ? null : seg.id)}
+          />
+        ))}
 
-            {/* Arm link mesh */}
-            <mesh
-              position={[0, yCenter, 0]}
-              castShadow
-              onClick={(e: { stopPropagation: () => void }) => {
-                e.stopPropagation()
-                setSelectedId(isSelected ? null : seg.id)
-              }}
-            >
-              {isBase ? (
-                <cylinderGeometry args={[0.14, 0.16, seg.length, 24]} />
-              ) : (
-                <boxGeometry args={[0.07, seg.length - 0.01, 0.07]} />
-              )}
-              <meshStandardMaterial
-                color={isSelected ? '#b56748' : seg.color}
-                emissive={isSelected ? '#e6c1af' : '#000000'}
-                emissiveIntensity={isSelected ? 0.14 : 0}
-                metalness={0.28}
-                roughness={0.38}
-              />
-            </mesh>
-
-            {/* Segment label indicator (small stripe at top of segment) */}
-            {!isBase && (
-              <mesh position={[0, yBase + seg.length - 0.015, 0]}>
-                <boxGeometry args={[0.075, 0.01, 0.075]} />
-                <meshStandardMaterial
-                  color={isSelected ? '#b56748' : '#8a98a8'}
-                  emissive={isSelected ? '#e6c1af' : '#d8e1ea'}
-                  emissiveIntensity={0.08}
-                />
-              </mesh>
-            )}
-          </group>
-        )
-      })}
-
-      {/* Gripper */}
-      {gripper.type === 'parallel_jaw' && (
-        <ParallelJawGripper yOffset={totalHeight} width={gripper.width} />
-      )}
-      {gripper.type === 'suction_cup' && (
-        <SuctionGripper yOffset={totalHeight} />
-      )}
-      {gripper.type === 'magnetic' && (
-        <MagneticGripper yOffset={totalHeight} />
-      )}
+        {gripper.type === 'parallel_jaw' && (
+          <ParallelJawGripper yTop={totalHeight} width={gripper.width} />
+        )}
+        {gripper.type === 'suction_cup' && (
+          <SuctionGripper yTop={totalHeight} />
+        )}
+        {gripper.type === 'magnetic' && (
+          <MagneticGripper yTop={totalHeight} />
+        )}
+      </group>
     </group>
   )
 }

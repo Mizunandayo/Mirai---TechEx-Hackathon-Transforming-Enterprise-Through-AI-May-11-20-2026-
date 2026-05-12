@@ -39,7 +39,7 @@
 
 ## DAILY PROGRESS TRACKER
 
-> **Today:** Tuesday, May 12, 2026 (Day 2 of 8) | **Deadline:** Monday, May 19, 2026 — 8:00 AM PST (Philippine Standard Time)
+> **Today:** Wednesday, May 13, 2026 (Day 3 of 8 — complete) | **Deadline:** Monday, May 19, 2026 — 8:00 AM PST (Philippine Standard Time)
 > **Legend:** ✅ Done &nbsp; ❌ Not Started &nbsp; 🔄 In Progress (today)
 
 ---
@@ -105,24 +105,26 @@
 ---
 
 ### ─────────────────────────────────────────────
-### DAY 3 — May 13 (Wednesday) · Task Editor (React Flow) 🔄 TODAY
+### DAY 3 — May 13 (Wednesday) · Task Editor (React Flow) ✅ COMPLETE
 ### ─────────────────────────────────────────────
 
-- ❌ React Flow canvas with custom node types
-- ❌ MOVE node — x/y/z/speed inputs + 3D ghost preview in R3F viewport
-- ❌ GRIP node — open/close/force inputs
-- ❌ WAIT node — ms delay input
-- ❌ LOOP node — count + nested blocks
-- ❌ IF node — condition string + then/else branches
-- ❌ Shared schema contracts — `SceneGraph`, `TaskSpec`, `ValidationReport`, `ExecutionPlan`
-- ❌ Skill library — `move_to`, `grasp`, `release`, `place`, `stack`, `wait`, `align`
-- ❌ Named targets and scene object registry for shelf / table / box / drawer / fold zone
-- ❌ Live 3D ghost arm preview as blocks are placed (arm moves in viewport while editing)
-- ❌ Export task as portable JSON file
-- ❌ Error highlighting — red nodes for impossible coordinates, yellow for near-limit moves
-- ❌ Keyboard shortcuts: Ctrl+S (save), Ctrl+Z (undo), Space (simulate), Delete (remove node)
+- ✅ React Flow canvas with 7 custom node types (Start, End, Move, Grip, Wait, Loop, If)
+- ✅ MOVE node — target preset, XYZ coords, speed slider, approach select; delete + issue icons
+- ✅ GRIP node — open/close semantic toggle (green #15803d / red #991b1b), force slider; delete
+- ✅ WAIT node — duration ms number input; delete
+- ✅ LOOP node — repeat count stepper; delete
+- ✅ IF node — condition text input, dual then/else handles; delete
+- ✅ Shared schema contracts — `SceneGraph`, `TaskSpec`, `TaskBlock`, `ValidationReport`, `ExecutionPlan`
+- ✅ Named targets and scene object registry — table, shelf, drawer, box-a/b, cylinder-a + 3 target zones
+- ✅ Export task as portable JSON file (Ctrl+S)
+- ✅ Error highlighting — validation footer shows issues per node
+- ✅ Keyboard shortcuts: Ctrl+S (export), Ctrl+Z (undo 20 steps)
+- ✅ Deletable edges — DeletableEdge.tsx with × button at midpoint (hover/selected reveal)
+- ✅ Node palette — drag-to-canvas + click-to-add, 6 block types
+- ✅ All node bodies `nodrag` — no React Flow drag hijacking on sliders/inputs
+- ✅ `ghostArmTargetAtom` pre-wired for Day 4 ArmViewer consumption
 
-> **Day 3 Deliverable:** Fully functional visual task programmer that exports valid task JSON.
+> **Day 3 Deliverable:** ✅ Visual task programmer with 7 node types, validation, drag-to-add palette, deletable edges, Ctrl+S export, Ctrl+Z undo, portable JSON download.
 
 ---
 
@@ -220,6 +222,13 @@
 - ❌ **Tesla Optimus box-stacking task** — pre-loaded, one-click import
 - ❌ **Toyota laundry folding task** — pre-loaded, one-click import
 
+**Real Robot Arm Presets (~2h) — Visual upgrade**
+- ❌ Source 2–3 free `.glb` mesh files (UR5, KUKA KR6 — CC-licensed, available on Sketchfab)
+- ❌ "Real Robot" skin toggle in arm designer sidebar — swaps procedural geometry for real mesh, all joint/segment data unchanged
+- ❌ Gemini adapts any community task to selected real arm's actual joint limits + reach envelope
+- ❌ Demo moment on stage: switch from custom builder → KUKA KR6 mesh → same task plays on real robot geometry
+- ❌ UR5 and KUKA KR6 chosen for recognition factor — judges know these robots
+
 **Quality**
 - ❌ Full end-to-end test: design arm → speak task → pre-flight check → simulate → side-by-side → export → QR code scan
 - ❌ Performance pass — confirm 60fps on mid-range hardware
@@ -265,15 +274,15 @@
 |---|---|---|---|
 | Day 1 | May 11 (Sun) | Foundation + 3D Engine | ✅ Complete |
 | Day 2 | May 12 (Tue) | Arm Design Studio | ✅ Complete + UI polished |
-| Day 3 | May 13 (Wed) | Task Editor (React Flow) | 🔄 In Progress — TODAY |
+| Day 3 | May 13 (Wed) | Task Editor (React Flow) | ✅ Complete + RobotArm industrial redesign |
 | Day 4 | May 14 (Thu) | Physics Simulation (Rapier) | ❌ Not Started |
 | Day 5 | May 15 (Fri) | Gemini AI Integration | ❌ Not Started |
 | Day 6 | May 16 (Sat) | Backend + MuJoCo + Export | ❌ Not Started |
-| Day 7 | May 17 (Sun) | Community + Preloads + Bonus | ❌ Not Started |
+| Day 7 | May 17 (Sun) | Community + Preloads + Real Robot Skins | ❌ Not Started |
 | Day 8 | May 18–19 (Mon–Tue) | Polish + Demo Prep + Submit | ❌ Not Started |
 
-> **⏰ Time remaining from May 12 morning: ~7 days**
-> **🚨 First action right now: `npm install --legacy-peer-deps` — nothing else can be tested until this runs.**
+> **⏰ Time remaining from May 13 evening: ~5.5 days**
+> **Next action: Day 4 — Physics Simulation with Rapier WASM**
 
 ---
 

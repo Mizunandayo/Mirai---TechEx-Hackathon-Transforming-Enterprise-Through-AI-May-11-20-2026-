@@ -42,3 +42,9 @@ desktop.ini
 # Temp
 *.tmp
 *.swp
+
+# Project planning/context files
+MIRAI_SESSION_CONTEXT.md
+MIRAI_BLUEPRINT.pdf
+MIRAI_BLUEPRINT.md
+convert_blueprint.py

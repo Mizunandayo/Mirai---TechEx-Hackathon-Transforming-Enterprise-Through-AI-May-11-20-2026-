@@ -1669,3 +1669,708 @@ body.panel-resizing .designer-panel {
     width: 100%;
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ═══════════════════════════════════════════════════════════════
+   TASK EDITOR — v1.0
+   Namespace: task-*, palette-*, flow-*
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Canvas wrapper ──────────────────────────────────────────── */
+
+.task-canvas-wrapper {
+  flex: 1;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  background: #f7f5f2;
+}
+
+/* React Flow instance */
+.task-canvas-wrapper .react-flow {
+  background: transparent;
+}
+
+/* ── React Flow overrides ─────────────────────────────────────── */
+
+/* Handles */
+.react-flow__handle {
+  width: 11px;
+  height: 11px;
+  background: #ffffff;
+  border: 2px solid #1a1a1a;
+  border-radius: 50%;
+  transition: background 150ms ease, transform 130ms ease, border-color 150ms ease;
+}
+.react-flow__handle:hover {
+  background: #1a1a1a;
+  transform: scale(1.25);
+}
+.react-flow__handle.connecting {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+/* Edges */
+.react-flow__edge-path {
+  stroke: #2a2a2a;
+  stroke-width: 1.6;
+}
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: #1d4ed8;
+  stroke-width: 2;
+}
+.react-flow__connection-path {
+  stroke: #2a2a2a;
+  stroke-width: 1.6;
+  stroke-dasharray: 6 4;
+}
+
+/* Selection box */
+.react-flow__selection {
+  background: rgba(29, 78, 216, 0.04);
+  border: 1.5px solid rgba(29, 78, 216, 0.4);
+  border-radius: 4px;
+}
+
+/* Controls (zoom +/-/fit) */
+.task-flow-controls.react-flow__controls {
+  background: rgba(255,255,255,0.90);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 9px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+  overflow: hidden;
+  bottom: 20px;
+  right: 20px;
+  left: auto;
+}
+.task-flow-controls.react-flow__controls button {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+  color: #1a1a1a;
+  width: 30px;
+  height: 30px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+.task-flow-controls.react-flow__controls button:last-child {
+  border-bottom: none;
+}
+.task-flow-controls.react-flow__controls button:hover {
+  background: rgba(0,0,0,0.04);
+}
+
+/* ── Edge delete button ───────────────────────────────────────── */
+
+/* Transparent 36×36 hit zone centered at edge midpoint */
+.task-edge-zone {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.task-edge-delete {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid #d1d5db;
+  background: #ffffff;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 130ms ease, transform 130ms ease, border-color 130ms ease,
+              color 130ms ease, background 130ms ease;
+}
+
+/* Show on hover of the zone */
+.task-edge-zone:hover .task-edge-delete {
+  opacity: 1;
+  transform: scale(1);
+  border-color: #fca5a5;
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+/* Show when edge is selected (click to select) */
+.task-edge-zone--selected .task-edge-delete {
+  opacity: 1;
+  transform: scale(1);
+  border-color: #fca5a5;
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+/* ── Task panel (sidebar) ─────────────────────────────────────── */
+
+.task-editor-panel {
+  animation: panel-enter 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.task-panel-desc-wrap {
+  padding: 0 14px 6px;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+
+.task-panel-desc {
+  width: 100%;
+  background: #f7f7f7;
+  border: 1px solid rgba(0,0,0,0.07);
+  border-radius: 7px;
+  padding: 8px 10px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.75rem;
+  color: #1a1a1a;
+  resize: none;
+  line-height: 1.5;
+  transition: border-color 150ms ease;
+  box-sizing: border-box;
+}
+.task-panel-desc:focus {
+  outline: none;
+  border-color: rgba(0,0,0,0.2);
+}
+.task-panel-desc::placeholder {
+  color: #888;
+}
+
+/* ── Node Palette ─────────────────────────────────────────────── */
+
+.task-palette {
+  padding: 10px 0 4px;
+}
+
+.task-palette-header {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #555;
+  padding: 0 16px 8px;
+}
+
+.task-palette-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 10px;
+}
+
+.palette-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: grab;
+  user-select: none;
+  transition: background 150ms ease, border-color 150ms ease, transform 150ms cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+}
+.palette-item:hover {
+  background: rgba(0,0,0,0.04);
+  border-color: rgba(0,0,0,0.07);
+  transform: translateX(2px);
+}
+.palette-item:active {
+  cursor: grabbing;
+  background: rgba(0,0,0,0.07);
+}
+
+.palette-item-accent {
+  width: 3px;
+  height: 32px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.palette-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.palette-item-label {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #0d0d0d;
+}
+
+.palette-item-desc {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.70rem;
+  color: #555;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.palette-item-add-icon {
+  color: #aaa;
+  flex-shrink: 0;
+  transition: color 150ms ease, transform 150ms ease;
+}
+.palette-item:hover .palette-item-add-icon {
+  color: #555;
+  transform: scale(1.15);
+}
+
+.task-palette-hint {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.68rem;
+  color: #888;
+  text-align: center;
+  padding: 10px 16px 4px;
+  margin: 0;
+}
+
+/* ── Validation footer ────────────────────────────────────────── */
+
+.task-validation-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-top: 1px solid rgba(0,0,0,0.06);
+}
+
+.task-val-badge {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.79rem;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.task-val-badge--ok {
+  color: #15803d;
+  background: rgba(21, 128, 61, 0.07);
+  border: 1px solid rgba(21, 128, 61, 0.2);
+}
+
+.task-val-badge--fail {
+  color: #b91c1c;
+  background: rgba(185, 28, 28, 0.06);
+  border: 1px solid rgba(185, 28, 28, 0.18);
+}
+
+.task-val-issues {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.task-val-issue {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 5px 0;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.73rem;
+  line-height: 1.45;
+  animation: fade-in 180ms ease both;
+}
+
+.task-val-issue-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 5px;
+}
+
+.task-val-issue--error   .task-val-issue-dot  { background: #dc2626; }
+.task-val-issue--warning .task-val-issue-dot  { background: #d97706; }
+.task-val-issue--error   .task-val-issue-msg  { color: #991b1b; }
+.task-val-issue--warning .task-val-issue-msg  { color: #92400e; }
+
+.task-val-issue-more {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.71rem;
+  color: #555;
+  padding-left: 12px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TASK NODES — v2
+   Distinction: colored dot in header, no left-border accent
+   ═══════════════════════════════════════════════════════════════ */
+
+@keyframes task-node-enter {
+  from { opacity: 0; transform: scale(0.93) translateY(5px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0);   }
+}
+
+/* ── Base node ────────────────────────────────────────────────── */
+
+.task-node {
+  background: #ffffff;
+  border: 1px solid #e5e5e3;
+  border-radius: 12px;
+  min-width: 228px;
+  max-width: 264px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.045);
+  font-family: 'Poppins', sans-serif;
+  animation: task-node-enter 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition: box-shadow 200ms ease, transform 200ms ease, border-color 180ms ease;
+  position: relative;
+}
+
+.task-node:hover {
+  box-shadow: 0 3px 12px rgba(0,0,0,0.075);
+  border-color: #d0d0ce;
+}
+
+.task-node--selected {
+  border-color: var(--node-accent-color, #374151);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--node-accent-color, #374151) 13%, transparent),
+              0 4px 16px rgba(0,0,0,0.08);
+  transform: translateY(-1px);
+}
+
+.task-node--error {
+  border-color: rgba(220, 38, 38, 0.45) !important;
+  background: rgba(220, 38, 38, 0.018);
+}
+
+.task-node--warning {
+  border-color: rgba(217, 119, 6, 0.4) !important;
+  background: rgba(217, 119, 6, 0.018);
+}
+
+/* ── Type accent (CSS variable only — no left border) ─────────── */
+
+.task-node--start { --node-accent-color: #0d0d0d; }
+.task-node--end   { --node-accent-color: #374151; }
+.task-node--move  { --node-accent-color: #1d4ed8; }
+.task-node--grip  { --node-accent-color: #15803d; }
+.task-node--wait  { --node-accent-color: #b45309; }
+.task-node--loop  { --node-accent-color: #6d28d9; }
+.task-node--if    { --node-accent-color: #b91c1c; }
+
+/* ── Node header ──────────────────────────────────────────────── */
+
+.task-node-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 10px 8px 12px;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+.task-node-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  color: #aaa;
+  border-radius: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  transition: background 120ms, color 120ms;
+}
+.task-node-delete:hover {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Colored square dot — primary type distinction */
+.task-node-type-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--node-accent-color, #374151);
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.task-node-type-label::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--node-accent-color, #374151);
+  flex-shrink: 0;
+}
+
+.task-node-title {
+  font-size: 0.75rem;
+  color: #666;
+}
+
+.task-node-issue-icon {
+  color: #dc2626;
+  flex-shrink: 0;
+}
+
+.task-node-issue-icon--warn {
+  color: #d97706;
+}
+
+/* ── Node body ────────────────────────────────────────────────── */
+
+.task-node-body {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.task-node-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.task-node-row--column {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.task-node-label {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #666;
+  flex-shrink: 0;
+  width: 54px;
+}
+
+.task-node-value {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  min-width: 32px;
+  text-align: right;
+}
+
+.task-node-hint {
+  font-size: 0.68rem;
+  color: #999;
+  text-align: center;
+  margin-top: -2px;
+}
+
+/* ── Controls within nodes ────────────────────────────────────── */
+
+.task-node-select,
+.task-node-number-input,
+.task-node-text-input,
+.task-node-coord-input {
+  background: #f8f8f7;
+  border: 1px solid #e5e5e3;
+  border-radius: 6px;
+  padding: 4px 7px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.75rem;
+  color: #1a1a1a;
+  height: 28px;
+  transition: border-color 150ms ease, background 150ms ease;
+  outline: none;
+  box-sizing: border-box;
+}
+.task-node-select:focus,
+.task-node-number-input:focus,
+.task-node-text-input:focus,
+.task-node-coord-input:focus {
+  border-color: var(--node-accent-color, #374151);
+  background: #fff;
+}
+
+.task-node-select      { flex: 1; cursor: pointer; }
+.task-node-text-input  { flex: 1; width: 100%; height: auto; }
+.task-node-number-input { width: 72px; text-align: right; }
+
+.task-node-slider {
+  flex: 1;
+  height: 3px;
+  appearance: none;
+  background: #e5e5e3;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+.task-node-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #1a1a1a;
+  cursor: pointer;
+  transition: transform 130ms ease;
+}
+.task-node-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.25);
+}
+
+/* Coordinate row */
+.task-node-coords {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.task-node-coord-field {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+}
+.task-node-coord-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+}
+.task-node-coord-input {
+  width: 100%;
+  text-align: center;
+  padding: 3px 4px;
+  font-size: 0.75rem;
+}
+.task-node-coord-unit {
+  font-size: 0.68rem;
+  color: #999;
+  flex-shrink: 0;
+  margin-top: 14px;
+}
+
+/* Toggle (Open/Close) */
+.task-node-toggle {
+  display: flex;
+  border: 1px solid #e5e5e3;
+  border-radius: 6px;
+  overflow: hidden;
+  flex: 1;
+}
+.task-toggle-btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 4px 0;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.73rem;
+  font-weight: 500;
+  color: #666;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+.task-toggle-btn--active {
+  background: #1a1a1a;
+  color: #ffffff;
+}
+.task-toggle-btn--open.task-toggle-btn--active {
+  background: #15803d;
+  color: #ffffff;
+}
+.task-toggle-btn--close.task-toggle-btn--active {
+  background: #991b1b;
+  color: #ffffff;
+}
+.task-toggle-btn:not(.task-toggle-btn--active):hover {
+  background: rgba(0,0,0,0.04);
+}
+
+/* Stepper (+/-) */
+.task-node-stepper {
+  display: flex;
+  align-items: center;
+  border: 1px solid #e5e5e3;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.task-stepper-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  font-size: 16px;
+  font-weight: 400;
+  color: #1a1a1a;
+  cursor: pointer;
+  transition: background 140ms ease;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.task-stepper-btn:hover:not(:disabled) { background: rgba(0,0,0,0.05); }
+.task-stepper-btn:disabled { color: #ccc; cursor: not-allowed; }
+.task-stepper-value {
+  min-width: 32px;
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  border-left: 1px solid #e5e5e3;
+  border-right: 1px solid #e5e5e3;
+  padding: 4px 0;
+}
+
+/* IF node dual-output row */
+.task-node-if-outputs {
+  display: flex;
+  justify-content: space-around;
+  padding: 6px 12px 10px;
+  border-top: 1px solid rgba(0,0,0,0.05);
+  position: relative;
+}
+.task-node-if-branch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+}
+.task-node-branch-label {
+  font-size: 0.63rem;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 12px;
+}
+
+/* Start/End node — no bottom divider on header */
+.task-node--start .task-node-header,
+.task-node--end   .task-node-header {
+  border-bottom: none;
+  padding-bottom: 12px;
+}

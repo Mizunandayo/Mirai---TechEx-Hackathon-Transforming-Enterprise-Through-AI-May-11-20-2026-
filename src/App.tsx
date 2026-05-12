@@ -3,8 +3,17 @@ import { useAtom } from 'jotai'
 import { isAdvancedModeAtom } from './store/atoms'
 import ArmViewer, { type ArmViewerHandle } from './components/ArmViewer'
 import ArmDesignerPanel from './components/arm-designer/ArmDesignerPanel'
+import TaskEditorPanel from './components/task-editor/TaskEditorPanel'
+import TaskFlowCanvas from './components/task-editor/TaskFlowCanvas'
 
-// ─── Header Dust ───────────────────────────────────────────────────────────────
+
+
+
+
+
+
+
+// Header Dust
 const DUST_COUNT = 90
 
 function HeaderDust() {
@@ -96,7 +105,9 @@ function HeaderDust() {
     />
   )
 }
-// ───────────────────────────────────────────────────────────────────────────────
+//
+
+
 
 type NavItem = 'design' | 'tasks' | 'simulate' | 'export'
 const NAV_ITEMS: { id: NavItem; label: string }[] = [
@@ -105,6 +116,15 @@ const NAV_ITEMS: { id: NavItem; label: string }[] = [
   { id: 'simulate', label: 'Simulate' },
   { id: 'export', label: 'Export' },
 ]
+
+const STEP_MAP: Record<NavItem, number> = { design: 1, tasks: 2, simulate: 3, export: 4 }
+
+const STATUS_MAP: Record<NavItem, string> = {
+  design: 'arm designer active',
+  tasks: 'task editor active',
+  simulate: 'simulation · coming day 4',
+  export: 'export · coming day 6',
+}
 
 export default function App() {
   const [isAdvanced, setIsAdvanced] = useAtom(isAdvancedModeAtom)
@@ -123,14 +143,27 @@ export default function App() {
     viewerRef.current?.setCameraFocus(next)
   }
 
-  function handleNavClick(nav: NavItem) {
-    if (nav === activeNav) {
-      setPanelOpen((o) => !o)
-    } else {
-      setActiveNav(nav)
-      setPanelOpen(nav === 'design')
-    }
+
+
+
+function handleNavClick(nav: NavItem) {
+  if (nav === activeNav) {
+    setPanelOpen((o) => !o)
+  } else {
+    setActiveNav(nav)
+    setPanelOpen(nav === 'design' || nav === 'tasks')
   }
+}
+
+
+
+
+
+
+
+
+
+
 
   return (
     <div className="app-shell">
@@ -150,12 +183,12 @@ export default function App() {
         </nav>
 
         <div className="hdr-brand" style={{ position: 'relative', zIndex: 1 }}>
-          <span className="hdr-logo">未来</span>
+          <span className="hdr-logo">ミライ</span>
           <span className="hdr-wordmark">MIRAI</span>
         </div>
 
         <div className="hdr-right" style={{ position: 'relative', zIndex: 1 }}>
-          <span className="hdr-step">Step 1 of 4</span>
+          <span className="hdr-step">Step {STEP_MAP[activeNav]} of 4</span>
           <button
             className={`hdr-mode${isAdvanced ? ' hdr-mode--detailed' : ''}`}
             onClick={() => setIsAdvanced(!isAdvanced)}
@@ -169,9 +202,11 @@ export default function App() {
       </header>
 
       <div className="app-body">
-        <ArmDesignerPanel hidden={!panelOpen} />
+        {activeNav === 'design' && <ArmDesignerPanel hidden={!panelOpen} />}
+        {activeNav === 'tasks' && panelOpen && <TaskEditorPanel />}
 
         <main className="viewport-wrapper">
+          {activeNav === 'tasks' ? <TaskFlowCanvas /> : (<>
           <ArmViewer ref={viewerRef} />
 
           <button
@@ -217,7 +252,7 @@ export default function App() {
               </button>
             </div>
           )}
-
+          </>)}
         </main>
       </div>
 
@@ -230,7 +265,7 @@ export default function App() {
           Server: <span className="status-offline">not connected · run python server/main.py</span>
         </span>
         <span className="status-item status-right">
-          Mirai 0.1.0 · arm designer complete
+          Mirai 0.1.0 · {STATUS_MAP[activeNav]}
         </span>
       </footer>
     </div>
