@@ -28,6 +28,15 @@ export function MoveNode({ id, data, selected }: NodeProps<MoveNodeType>) {
     [id, updateNodeData],
   )
 
+  // Manual coordinate edits always detach from preset targets.
+  const handleCoordInput = useCallback(
+    (axis: 'x' | 'y' | 'z', rawValue: string) => {
+      const parsed = parseFloat(rawValue)
+      update({ [axis]: Number.isFinite(parsed) ? parsed : 0, targetId: null })
+    },
+    [update],
+  )
+
   // Update target coordinates when a preset target is selected
   const handleTargetChange = useCallback(
     (targetId: string) => {
@@ -117,7 +126,7 @@ export function MoveNode({ id, data, selected }: NodeProps<MoveNodeType>) {
                 step={0.01}
                 min={-2}
                 max={2}
-                onChange={(e) => update({ [axis]: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => handleCoordInput(axis, e.target.value)}
                 style={{ cursor: 'text' }}
               />
             </div>
