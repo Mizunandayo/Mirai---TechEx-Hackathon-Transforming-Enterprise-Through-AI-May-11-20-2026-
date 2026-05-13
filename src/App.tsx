@@ -5,6 +5,8 @@ import ArmViewer, { type ArmViewerHandle } from './components/ArmViewer'
 import ArmDesignerPanel from './components/arm-designer/ArmDesignerPanel'
 import TaskEditorPanel from './components/task-editor/TaskEditorPanel'
 import TaskFlowCanvas from './components/task-editor/TaskFlowCanvas'
+import SimViewer from './components/simulation/SimViewer'
+import SimulationPanel from './components/simulation/SimulationPanel'
 
 
 
@@ -122,7 +124,7 @@ const STEP_MAP: Record<NavItem, number> = { design: 1, tasks: 2, simulate: 3, ex
 const STATUS_MAP: Record<NavItem, string> = {
   design: 'arm designer active',
   tasks: 'task editor active',
-  simulate: 'simulation · coming day 4',
+  simulate: 'physics simulation',
   export: 'export · coming day 6',
 }
 
@@ -151,7 +153,7 @@ function handleNavClick(nav: NavItem) {
     setPanelOpen((o) => !o)
   } else {
     setActiveNav(nav)
-    setPanelOpen(nav === 'design' || nav === 'tasks')
+    setPanelOpen(nav !== 'export')
   }
 }
 
@@ -204,9 +206,10 @@ function handleNavClick(nav: NavItem) {
       <div className="app-body">
         {activeNav === 'design' && <ArmDesignerPanel hidden={!panelOpen} />}
         {activeNav === 'tasks' && panelOpen && <TaskEditorPanel />}
+        {activeNav === 'simulate' && panelOpen && <SimulationPanel />}
 
         <main className="viewport-wrapper">
-          {activeNav === 'tasks' ? <TaskFlowCanvas /> : (<>
+          {activeNav === 'tasks' ? <TaskFlowCanvas /> : activeNav === 'simulate' ? <SimViewer /> : (<>
           <ArmViewer ref={viewerRef} />
 
           <button

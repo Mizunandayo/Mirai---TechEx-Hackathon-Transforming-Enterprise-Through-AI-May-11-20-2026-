@@ -1,5 +1,5 @@
 # Mirai — Session Context
-**Last updated:** Wednesday, May 13, 2026 — Days 1–3 complete. RobotArm industrial redesign done. Real Robot Arm Presets locked into Day 7. Day 4 (Physics Simulation) starts next.
+**Last updated:** Thursday, May 14, 2026 — Days 1–3 complete. Day 4 (Physics Simulation) is in progress with core sim systems, navigation-state persistence, and latest simulation UX fixes implemented.
 
 ---
 
@@ -64,6 +64,55 @@
 
 ---
 
+## Updated Daily Task Tracker (Authoritative)
+
+### Day 1 — Foundation + 3D Engine
+✅ Repo, scaffold, dependencies, base 3D viewer, base atoms, FastAPI skeleton all completed
+✅ Segment click-to-select and advanced mode wiring completed
+❌ None pending for Day 1
+
+### Day 2 — Arm Design Studio
+✅ Arm segment editor, gripper library, reach envelope, joint arcs, validation, BOM, save/load all completed
+✅ Design viewport and panel UX polish (camera reset, hint, panel behaviors) completed
+❌ None pending for Day 2
+
+### Day 3 — Task Editor (React Flow)
+✅ 7 node types, palette, deletable edges, validation, undo/export, keyboard shortcuts completed
+✅ Node interaction polish (`nodrag`, semantic grip toggle, edge delete UX) completed
+✅ Task canvas now persists when leaving and returning to Tasks tab
+❌ None pending for Day 3
+
+### Day 4 — Physics Simulation (In Progress)
+✅ FK/IK + deterministic motion compiler pipeline operational
+✅ Playback transport: play/pause/step/rewind/jump/speed + loop + skip-collision + reverse + reset
+✅ Timeline collision/grip-empty markers, live Joint HUD, live Physics Metrics completed
+✅ Camera focus/reset, live viewport tool-point X/Y readout, and per-joint row metrics layout completed
+✅ Dynamic object reset at frame 0, approach-target freeze, and no-snap carry behavior completed
+❌ Rapier rigid body setup for each arm segment
+❌ Revolute/prismatic joint constraints in Rapier
+❌ Collision highlight flash + auto-rewind polish
+
+### Day 5 — Gemini AI Integration (Not Started)
+❌ `/ai/plan` + `/ai/repair` endpoints
+❌ Grounded TaskSpec generation + deterministic repair loop
+❌ Voice input + ReAct Think/Act/Observe panel + pre-flight safety + confidence badge
+
+### Day 6 — Backend + MuJoCo + Export (Not Started)
+❌ Railway deployment + MuJoCo WS pipeline + accuracy badge
+❌ Servo lifespan predictor + side-by-side Rapier vs MuJoCo replay
+❌ Deterministic code/BOM/URDF/QR/signed export pipeline
+
+### Day 7 — Community + Preloads + Presets (Not Started)
+❌ Community browse/import flow + seeded task library
+❌ Famous preload tasks + real robot preset skins
+❌ Full E2E quality pass and 60fps verification
+
+### Day 8 — Polish + Demo Prep + Submit (Not Started)
+❌ Production deploys, final E2E testing, demo video, slide deck
+❌ README final pass, repo cleanup, and submission before deadline
+
+---
+
 ## Current File State
 | File | Status |
 |------|--------|
@@ -80,14 +129,19 @@
 | `src/App.css` | ✅ Full design system (~1,550+ lines): hdr-*, panel-*, task-*, palette-*, flow-*, task-edge-* |
 | `src/types/arm.ts` | ✅ ArmSegment, GripperConfig, BOMItem, ValidationResult, ArmConfig |
 | `src/types/task.ts` | ✅ SceneGraph, TaskSpec, TaskBlock, ValidationReport, ExecutionPlan |
+| `src/types/simulation.ts` | ✅ SimFrame, ExecutionPlan, PlaybackStatus, JointMetrics (`approachTargetId`, `gripEmpty`) |
 | `src/store/atoms.ts` | ✅ Fully typed Jotai atoms |
 | `src/store/taskAtoms.ts` | ✅ taskNodes, taskEdges, pendingAddNode, ghostArmTarget, selectedNodeId |
+| `src/store/simAtoms.ts` | ✅ compiledPlan, playbackStatus, currentFrame, playbackSpeed, loop, skipCollisionPause |
 | `src/utils/armPhysics.ts` | ✅ calculateMaxReach, calculateTorqueAtJoint, validateArm |
 | `src/utils/bomPricing.ts` | ✅ calculateBOM, getTotalBOMCost (72-piece BOM) |
 | `src/utils/armExport.ts` | ✅ exportArmConfig, parseArmConfig, loadArmConfigFromFile |
 | `src/utils/sceneRegistry.ts` | ✅ Default scene objects + target zones |
 | `src/utils/taskValidation.ts` | ✅ validateTask() pure function |
 | `src/utils/taskExport.ts` | ✅ exportTaskJson, parseTaskJson, loadTaskFromFile |
+| `src/utils/forwardKinematics.ts` | ✅ FK solver for serial arm |
+| `src/utils/inverseKinematics.ts` | ✅ FABRIK IK solver |
+| `src/utils/motionCompiler.ts` | ✅ Task graph compiler with baked collisions/grab semantics |
 | `src/components/ArmViewer.tsx` | ✅ R3F Canvas, forwardRef, resetCamera(), lights, shadows, overlays |
 | `src/components/RobotArm.tsx` | ✅ **Industrial redesign** — JointHousing (disk+axle flanges), SegmentGroup (useFrame selection pulse), ParallelJawGripper (collar+palm+rails+jaws+pads), SuctionGripper (collar+bellows torus rings+cup), MagneticGripper (collar+housing+face+LED), waist idle animation |
 | `src/components/ReachEnvelope.tsx` | ✅ Wireframe reach sphere + 80% inner reference |
@@ -108,6 +162,15 @@
 | `src/components/task-editor/nodes/WaitNode.tsx` | ✅ Duration ms input; delete |
 | `src/components/task-editor/nodes/LoopNode.tsx` | ✅ Repeat count stepper; delete |
 | `src/components/task-editor/nodes/IfNode.tsx` | ✅ Condition input, then/else handles; delete |
+| `src/components/simulation/SceneObjects.tsx` | ✅ Rapier bodies + held-object pinning + approach-target freeze + frame-0 reset |
+| `src/components/simulation/SimulatedArm.tsx` | ✅ FK-driven nested articulation + kinematic gripper collider |
+| `src/components/simulation/PathTrail.tsx` | ✅ End-effector trail rendering |
+| `src/components/simulation/SimViewer.tsx` | ✅ Canvas + playback engine + camera focus/reset controls |
+| `src/components/simulation/PlaybackControls.tsx` | ✅ Compile/transport/speed + loop + skip-collision toggles + redesigned layout |
+| `src/components/simulation/TimelineScrubber.tsx` | ✅ Seekable timeline + collision + grip-empty markers |
+| `src/components/simulation/JointHUD.tsx` | ✅ Live joint state + compact redesigned layout |
+| `src/components/simulation/PhysicsMetrics.tsx` | ✅ Per-joint metrics + collision/grip-empty alerts + redesigned layout |
+| `src/components/simulation/SimulationPanel.tsx` | ✅ Simulation sidebar composition (redesigned child layout) |
 | `server/main.py` | ✅ FastAPI skeleton + health check (no AI endpoints yet — Day 5) |
 | `convert_blueprint.py` | Can be deleted |
 | `MIRAI_BLUEPRINT.html` | Can be deleted |
@@ -124,6 +187,23 @@ Full arm designer: segment panel, gripper library (3 types), reach envelope, joi
 
 ### Day 3 ✅ — Task Editor (React Flow)
 Visual block programmer: 7 node types (Start, End, Move, Grip, Wait, Loop, If), deletable edges (× button at midpoint), palette (drag + click to add), Ctrl+S export, Ctrl+Z undo (20 steps), task validation, portable JSON download. All node bodies use `nodrag` — no drag hijacking. GripNode green/red semantic toggle fixed.
+
+### Day 4 🔄 — Physics Simulation (Rapier WASM, in progress)
+Core simulation pipeline is live: FK/IK + motion compiler + SimViewer + SceneObjects + SimulatedArm + PathTrail + PlaybackControls + TimelineScrubber + JointHUD + PhysicsMetrics + SimulationPanel.
+
+Completed in-session fixes:
+- Surface collision warnings fixed (table/shelf now counted)
+- Camera focus cycle + reset controls
+- Loop playback toggle + skip-collision-pause toggle
+- Reverse playback + reset transport controls added
+- Dynamic bodies reset on loop/rewind frame 0
+- Grip no-snap carry using runtime offset tracking
+- Runtime-correct grab alignment via approach-target freeze (`approachTargetId` baked into `SimFrame`)
+- Soft warning for empty grip close (`gripEmpty`) surfaced in timeline and physics alerts
+- Live tool-point coordinate readout (X/Y) added to simulation viewport (bottom-right)
+- Physics metrics panel switched to line-by-line per-joint rows (instead of compact card row)
+- Simulation panel child layout redesigned to a more minimal, scannable structure
+- Task canvas state now persists when navigating away from and back to the Tasks tab
 
 ### RobotArm Industrial Redesign ✅ (Day 2 extended — completed Day 3)
 Complete `RobotArm.tsx` rewrite with:
@@ -166,22 +246,39 @@ Stored in **meters** (0.03–0.15 range). `hw = width / 2` gives half-width in m
 
 ---
 
-## Day 4 — Physics Simulation (Ready to Start)
+## Day 4 — Physics Simulation (Implementation Snapshot)
 
-**What to build:**
-- Rapier rigid body per arm segment (Box + Cylinder colliders)
-- Revolute joint constraints between segments
-- Task executor: reads taskNodes/taskEdges → drives simulation frame-by-frame
-- Motion compiler: `TaskSpec` → deterministic motion primitives → `ExecutionPlan`
-- Playback controls: play/pause/rewind/step-frame/speed 0.25x–4x
-- Timeline scrubber: click frame → jump
-- Joint angle HUD: J1–J5 angles + gripper state live
-- Physics metrics panel: torque, velocity, acceleration per joint
-- Collision highlight: red mesh flash + auto-rewind to collision frame
-- Path trail: glowing trajectory behind end-effector
-- Environment objects: table, shelf, box, sock pile, drawer
+**Architecture decision:** FK-driven arm (not Rapier joints) + Rapier for environment objects only. This is now implemented and running.
 
-**Key constraint:** ghostArmTargetAtom is already pre-wired in taskAtoms.ts — ArmViewer should read it to show ghost arm position during task editing.
+**Implemented files:**
+1. `src/types/simulation.ts` — SimFrame, ExecutionPlan, PlaybackStatus, JointMetrics
+2. `src/utils/forwardKinematics.ts` — FK: pitchAngles[] + waistYawDeg → jointPositions[] + endEffector
+3. `src/utils/inverseKinematics.ts` — FABRIK IK: targetWorld → pitchAngles[] + waistYawDeg
+4. `src/utils/motionCompiler.ts` — compileTask(): walks React Flow graph → SimFrame[]
+5. `src/store/simAtoms.ts` — compiledPlan, playbackStatus, currentFrame, speed, pathTrailPoints (derived)
+6. `src/components/simulation/SceneObjects.tsx` — env with Rapier bodies
+7. `src/components/simulation/SimulatedArm.tsx` — nested group FK arm + kinematic Rapier sphere
+8. `src/components/simulation/PathTrail.tsx` — glowing end-effector trail
+9. `src/components/simulation/SimViewer.tsx` — R3F Canvas + Physics + playback engine
+10. `src/components/simulation/PlaybackControls.tsx` — compile + transport + speed
+11. `src/components/simulation/TimelineScrubber.tsx` — seekable + collision markers
+12. `src/components/simulation/JointHUD.tsx` — J0–JN live angles + torque + velocity
+13. `src/components/simulation/PhysicsMetrics.tsx` — per-joint metrics + collision alert
+14. `src/components/simulation/SimulationPanel.tsx` — sidebar composition
+
+**App.tsx:** Add `SimulationPanel` + `SimViewer` to `simulate` nav branch.
+**App.css:** Append `sim-*` namespace styles (~180 lines).
+
+**Critical FK convention:**
+- `pitchAngles[i]` = DELTA pitch from parent link direction (degrees)
+- `waistYawDeg` = separate Y-axis rotation (separate from pitchAngles)
+- Nested Three.js groups → rotations accumulate automatically
+- `pitchAngles = [0,0,...]` → arm straight up (home configuration)
+
+**Critical SimulatedArm pattern:**
+- Uses recursive `SegmentChain` component — proper nested groups
+- `revolveIdx.current` is a mutable ref reset each render — increments through pitchAngles
+- Kinematic Rapier sphere at endEffector position → physically pushes dynamic objects
 
 ---
 
@@ -207,7 +304,7 @@ Stored in **meters** (0.03–0.15 range). `hw = width / 2` gives half-width in m
 
 ## Hackathon Deadline
 **May 19, 2026 — 8:00 AM Philippine Standard Time**
-Days 1–3 complete. 6 days remaining. Day 4 (Physics Simulation / Rapier WASM) starts next.
+Days 1–3 complete. Day 4 in progress. Remaining focus: finish Day 4 polish, then start Day 5 Gemini integration.
 
 ---
 

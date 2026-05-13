@@ -1,0 +1,335 @@
+{
+  "spec": {
+    "id": "task-1778701294272",
+    "name": "Untitled Task",
+    "version": "1.0",
+    "createdAt": "2026-05-13T19:41:34.273Z",
+    "description": "",
+    "sceneId": "default",
+    "blocks": [
+      {
+        "kind": "start",
+        "label": "Start"
+      },
+      {
+        "kind": "move",
+        "label": "Move To",
+        "params": {
+          "targetId": "cylinder-a",
+          "x": 0.06,
+          "y": 0.3,
+          "z": -0.1,
+          "speed": 0.5,
+          "approach": "side"
+        }
+      },
+      {
+        "kind": "grip",
+        "label": "Grip",
+        "params": {
+          "action": "open",
+          "force": 60
+        }
+      },
+      {
+        "kind": "grip",
+        "label": "Grip",
+        "params": {
+          "action": "close",
+          "force": 60
+        }
+      },
+      {
+        "kind": "move",
+        "label": "Move To",
+        "params": {
+          "targetId": "",
+          "x": 0.15,
+          "y": 0.4,
+          "z": 0,
+          "speed": 0.5,
+          "approach": "above"
+        }
+      },
+      {
+        "kind": "move",
+        "label": "Move To",
+        "params": {
+          "targetId": "shelf",
+          "x": 0.5,
+          "y": 0.43,
+          "z": 0,
+          "speed": 0.5,
+          "approach": "above"
+        }
+      },
+      {
+        "kind": "grip",
+        "label": "Grip",
+        "params": {
+          "action": "open",
+          "force": 60
+        }
+      },
+      {
+        "kind": "end",
+        "label": "End"
+      }
+    ]
+  },
+  "flow": {
+    "nodes": [
+      {
+        "id": "start",
+        "type": "start",
+        "position": {
+          "x": 220,
+          "y": 60
+        },
+        "data": {
+          "kind": "start",
+          "label": "Start"
+        },
+        "deletable": false,
+        "selectable": true,
+        "measured": {
+          "width": 228,
+          "height": 41
+        }
+      },
+      {
+        "id": "move-1778672097312",
+        "type": "move",
+        "position": {
+          "x": -374.0471496995311,
+          "y": 327.02650497809833
+        },
+        "data": {
+          "kind": "move",
+          "label": "Move To",
+          "params": {
+            "targetId": "cylinder-a",
+            "x": 0.06,
+            "y": 0.3,
+            "z": -0.1,
+            "speed": 0.5,
+            "approach": "side"
+          }
+        },
+        "measured": {
+          "width": 264,
+          "height": 201
+        },
+        "selected": true,
+        "dragging": false
+      },
+      {
+        "id": "grip-1778672113890",
+        "type": "grip",
+        "position": {
+          "x": -210.9925019145667,
+          "y": 168.60895944931502
+        },
+        "data": {
+          "kind": "grip",
+          "label": "Grip",
+          "params": {
+            "action": "open",
+            "force": 60
+          }
+        },
+        "measured": {
+          "width": 255,
+          "height": 111
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "grip-1778672141547",
+        "type": "grip",
+        "position": {
+          "x": -524.2012282311953,
+          "y": 583.082149174862
+        },
+        "data": {
+          "kind": "grip",
+          "label": "Grip",
+          "params": {
+            "action": "close",
+            "force": 60
+          }
+        },
+        "measured": {
+          "width": 255,
+          "height": 111
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "move-lift-waypoint",
+        "type": "move",
+        "position": {
+          "x": -115.98207272717676,
+          "y": 698.3122522949141
+        },
+        "data": {
+          "kind": "move",
+          "label": "Move To",
+          "params": {
+            "targetId": "",
+            "x": 0.15,
+            "y": 0.4,
+            "z": 0,
+            "speed": 0.5,
+            "approach": "above"
+          }
+        },
+        "measured": {
+          "width": 264,
+          "height": 201
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "move-1778672149697",
+        "type": "move",
+        "position": {
+          "x": -713.305217325635,
+          "y": 847.4241126396159
+        },
+        "data": {
+          "kind": "move",
+          "label": "Move To",
+          "params": {
+            "targetId": "shelf",
+            "x": 0.5,
+            "y": 0.43,
+            "z": 0,
+            "speed": 0.5,
+            "approach": "above"
+          }
+        },
+        "measured": {
+          "width": 264,
+          "height": 201
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "grip-1778672158741",
+        "type": "grip",
+        "position": {
+          "x": -371.27564866159264,
+          "y": 1021.9334508198649
+        },
+        "data": {
+          "kind": "grip",
+          "label": "Grip",
+          "params": {
+            "action": "open",
+            "force": 60
+          }
+        },
+        "measured": {
+          "width": 255,
+          "height": 111
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "end-1778672170589",
+        "type": "end",
+        "position": {
+          "x": -248.20183527752692,
+          "y": 1267.8012893617915
+        },
+        "data": {
+          "kind": "end",
+          "label": "End"
+        },
+        "measured": {
+          "width": 228,
+          "height": 41
+        }
+      }
+    ],
+    "edges": [
+      {
+        "style": {
+          "stroke": "#0d0d0d",
+          "strokeWidth": 1.5
+        },
+        "animated": false,
+        "source": "start",
+        "target": "grip-1778672113890",
+        "id": "xy-edge__start-grip-1778672113890"
+      },
+      {
+        "style": {
+          "stroke": "#0d0d0d",
+          "strokeWidth": 1.5
+        },
+        "animated": false,
+        "source": "grip-1778672113890",
+        "target": "move-1778672097312",
+        "id": "xy-edge__grip-1778672113890-move-1778672097312"
+      },
+      {
+        "style": {
+          "stroke": "#0d0d0d",
+          "strokeWidth": 1.5
+        },
+        "animated": false,
+        "source": "move-1778672097312",
+        "target": "grip-1778672141547",
+        "id": "xy-edge__move-1778672097312-grip-1778672141547"
+      },
+      {
+        "style": {
+          "stroke": "#0d0d0d",
+          "strokeWidth": 1.5
+        },
+        "animated": false,
+        "source": "grip-1778672141547",
+        "target": "move-lift-waypoint",
+        "id": "xy-edge__grip-1778672141547-move-lift-waypoint"
+      },
+      {
+        "style": {
+          "stroke": "#0d0d0d",
+          "strokeWidth": 1.5
+        },
+        "animated": false,
+        "source": "move-lift-waypoint",
+        "target": "move-1778672149697",
+        "id": "xy-edge__move-lift-waypoint-move-1778672149697"
+      },
+      {
+        "style": {
+          "stroke": "#0d0d0d",
+          "strokeWidth": 1.5
+        },
+        "animated": false,
+        "source": "move-1778672149697",
+        "target": "grip-1778672158741",
+        "id": "xy-edge__move-1778672149697-grip-1778672158741"
+      },
+      {
+        "style": {
+          "stroke": "#0d0d0d",
+          "strokeWidth": 1.5
+        },
+        "animated": false,
+        "source": "grip-1778672158741",
+        "target": "end-1778672170589",
+        "id": "xy-edge__grip-1778672158741-end-1778672170589"
+      }
+    ]
+  },
+  "exportedBy": "Mirai v0.1.0"
+}

@@ -92,8 +92,13 @@ function createNodeData(type: string): TaskBlock {
 
 
 function FlowEditor() {
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node<TaskBlock>>([INITIAL_START_NODE])
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
+  const initialNodes = useAtomValue(taskNodesAtom)
+  const initialEdges = useAtomValue(taskEdgesAtom)
+
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node<TaskBlock>>(
+    initialNodes.length > 0 ? initialNodes : [INITIAL_START_NODE],
+  )
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(initialEdges)
   const { screenToFlowPosition } = useReactFlow()
 
   const setTaskNodes   = useSetAtom(taskNodesAtom)

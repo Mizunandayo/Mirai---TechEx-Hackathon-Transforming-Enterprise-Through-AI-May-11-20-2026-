@@ -116,14 +116,17 @@ function ParallelJawGripper({ yTop, width }: { yTop: number; width: number }) {
   const hw = width / 2
   return (
     <group position={[0, yTop, 0]}>
+      {/* Mount collar — sits at arm tip */}
       <mesh position={[0, 0.016, 0]}>
         <cylinderGeometry args={[0.076, 0.076, 0.032, 24]} />
         <meshStandardMaterial color={C.waist} {...MAT_STEEL} />
       </mesh>
+      {/* Palm body */}
       <mesh position={[0, -0.010, 0]}>
         <boxGeometry args={[hw * 2 + 0.044, 0.038, 0.066]} />
         <meshStandardMaterial color={C.gripBody} {...MAT_ALUM} />
       </mesh>
+      {/* Guide rails */}
       <mesh position={[-hw * 0.74, -0.048, 0]}>
         <cylinderGeometry args={[0.0085, 0.0085, 0.056, 10]} />
         <meshStandardMaterial color={C.gripRail} {...MAT_STEEL} />
@@ -132,18 +135,22 @@ function ParallelJawGripper({ yTop, width }: { yTop: number; width: number }) {
         <cylinderGeometry args={[0.0085, 0.0085, 0.056, 10]} />
         <meshStandardMaterial color={C.gripRail} {...MAT_STEEL} />
       </mesh>
+      {/* Left jaw — hangs downward, spreads ±X */}
       <mesh position={[-(hw + 0.008), -0.050, 0]}>
         <boxGeometry args={[0.026, 0.060, 0.042]} />
         <meshStandardMaterial color={C.gripJaw} {...MAT_ALUM} />
       </mesh>
+      {/* Right jaw */}
       <mesh position={[hw + 0.008, -0.050, 0]}>
         <boxGeometry args={[0.026, 0.060, 0.042]} />
         <meshStandardMaterial color={C.gripJaw} {...MAT_ALUM} />
       </mesh>
+      {/* Left rubber pad */}
       <mesh position={[-(hw + 0.008), -0.090, 0]}>
         <boxGeometry args={[0.020, 0.024, 0.032]} />
         <meshStandardMaterial color={C.gripPad} {...MAT_RUBB} />
       </mesh>
+      {/* Right rubber pad */}
       <mesh position={[hw + 0.008, -0.090, 0]}>
         <boxGeometry args={[0.020, 0.024, 0.032]} />
         <meshStandardMaterial color={C.gripPad} {...MAT_RUBB} />
@@ -223,7 +230,20 @@ export default function RobotArm() {
 
   const totalHeight = segments.reduce((sum, s) => sum + s.length, 0)
 
+
+
+
+
+
+
+
+
+
+
+
+
   return (
+
     <group>
       <mesh position={[0, -0.026, 0]} receiveShadow>
         <cylinderGeometry args={[0.250, 0.270, 0.052, 36]} />
@@ -265,5 +285,6 @@ export default function RobotArm() {
         )}
       </group>
     </group>
+
   )
 }

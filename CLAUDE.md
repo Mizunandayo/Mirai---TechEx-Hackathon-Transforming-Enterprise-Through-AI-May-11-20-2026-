@@ -49,13 +49,62 @@ Browser-based AI-powered robot arm simulator that makes robotics accessible to e
 | 1 | May 11 | Foundation + 3D Engine | ✅ Scaffold + dependencies + git push complete |
 | 2 | May 12 | Arm Design Studio | ✅ **COMPLETE** — All 12 files created, types defined, atoms/utils/components full stack, React 18 downgrade applied, app live at localhost:5173, TypeScript clean |
 | 3 | May 13 | Task Editor (React Flow) | ✅ **COMPLETE** — All 14 files created, 7 node types, palette, canvas, deletable edges, validation, Ctrl+S export, Ctrl+Z undo, TypeScript clean |
-| 4 | May 14 | Physics Simulation (Rapier) | ⏳ Ready to Start |
+| 4 | May 14 | Physics Simulation (Rapier) | 🔄 **IN PROGRESS** — Sim pipeline live (compiler/FK/IK/viewer/playback/timeline/HUD/metrics), collision markers + grip-empty warning, loop/skip-collision/reverse/reset controls, camera focus/reset, live viewport X/Y point readout, approach-target freeze + no-snap carry implemented |
 | 5 | May 15 | Gemini AI Integration | ⏳ Ready to Start |
 | 6 | May 16 | Backend + MuJoCo + Export | ⏳ Ready to Start |
 | 7 | May 17 | Community + Famous Preloads | ⏳ Ready to Start |
 | 8 | May 18–19 | Polish + Demo Prep + Submit | ⏳ Ready to Start |
 
-**STATUS:** Days 1–3 complete. App live at localhost:5173. TypeScript clean. Day 4 (Physics Simulation) starts next.
+**STATUS:** Days 1–3 complete. Day 4 is actively in progress with core simulation systems working and multiple physics/UX fixes applied.
+
+---
+
+## UPDATED DAILY TASKS (AUTHORITATIVE)
+
+### Day 1 — Foundation + 3D Engine
+✅ Repo, scaffold, dependencies, base 3D viewer, base atoms, FastAPI skeleton all completed
+✅ Segment click-to-select and advanced mode wiring completed
+❌ None pending for Day 1
+
+### Day 2 — Arm Design Studio
+✅ Arm segment editor, gripper library, reach envelope, joint arcs, validation, BOM, save/load all completed
+✅ Design viewport and panel UX polish (camera reset, hint, panel behaviors) completed
+❌ None pending for Day 2
+
+### Day 3 — Task Editor (React Flow)
+✅ 7 node types, palette, deletable edges, validation, undo/export, keyboard shortcuts completed
+✅ Node interaction polish (`nodrag`, semantic grip toggle, edge delete UX) completed
+✅ Task canvas now persists when leaving and returning to Tasks tab
+❌ None pending for Day 3
+
+### Day 4 — Physics Simulation (In Progress)
+✅ FK/IK + deterministic motion compiler pipeline operational
+✅ Playback transport: play/pause/step/rewind/jump/speed + loop + skip-collision + reverse + reset
+✅ Timeline collision/grip-empty markers, live Joint HUD, live Physics Metrics completed
+✅ Camera focus/reset, live viewport tool-point X/Y readout, and per-joint row metrics layout completed
+✅ Dynamic object reset at frame 0, approach-target freeze, and no-snap carry behavior completed
+❌ Rapier rigid body setup for each arm segment
+❌ Revolute/prismatic joint constraints in Rapier
+❌ Collision highlight flash + auto-rewind polish
+
+### Day 5 — Gemini AI Integration (Not Started)
+❌ `/ai/plan` + `/ai/repair` endpoints
+❌ Grounded TaskSpec generation + deterministic repair loop
+❌ Voice input + ReAct Think/Act/Observe panel + pre-flight safety + confidence badge
+
+### Day 6 — Backend + MuJoCo + Export (Not Started)
+❌ Railway deployment + MuJoCo WS pipeline + accuracy badge
+❌ Servo lifespan predictor + side-by-side Rapier vs MuJoCo replay
+❌ Deterministic code/BOM/URDF/QR/signed export pipeline
+
+### Day 7 — Community + Preloads + Presets (Not Started)
+❌ Community browse/import flow + seeded task library
+❌ Famous preload tasks + real robot preset skins
+❌ Full E2E quality pass and 60fps verification
+
+### Day 8 — Polish + Demo Prep + Submit (Not Started)
+❌ Production deploys, final E2E testing, demo video, slide deck
+❌ README final pass, repo cleanup, and submission before deadline
 
 ---
 
@@ -183,18 +232,49 @@ Browser-based AI-powered robot arm simulator that makes robotics accessible to e
 
 ### Day 4 (May 14) — Physics Simulation (Rapier WASM)
 
+**Architecture:** FK-driven arm (kinematic, deterministic) + Rapier for environment objects + FABRIK IK solver
+
+**New files:**
+- `src/types/simulation.ts` — SimFrame, ExecutionPlan, PlaybackStatus, JointMetrics
+- `src/utils/forwardKinematics.ts` — FK for serial arm (Y-up, cumulative pitch + waist yaw)
+- `src/utils/inverseKinematics.ts` — FABRIK IK (N joints, 2D plane + yaw decomposition)
+- `src/utils/motionCompiler.ts` — compileTask(): graph traversal → SimFrame[] with baked IK + collision check
+- `src/store/simAtoms.ts` — compiledPlan, playbackStatus, currentFrame, playbackSpeed, pathTrail (derived)
+- `src/components/simulation/SceneObjects.tsx` — env objects with Rapier bodies (fixed surfaces, dynamic boxes/cylinders)
+- `src/components/simulation/SimulatedArm.tsx` — FK-driven NESTED GROUP arm (proper articulation), kinematic Rapier sphere at gripper
+- `src/components/simulation/PathTrail.tsx` — glowing end-effector trail (BufferGeometry, pre-allocated)
+- `src/components/simulation/SimViewer.tsx` — R3F Canvas + Physics wrapper + useSimPlayback() engine
+- `src/components/simulation/PlaybackControls.tsx` — compile + play/pause/step/rewind + 5 speed presets
+- `src/components/simulation/TimelineScrubber.tsx` — seekable timeline with collision markers
+- `src/components/simulation/JointHUD.tsx` — J0–JN angles + torque + velocity + at-limit highlight
+- `src/components/simulation/PhysicsMetrics.tsx` — per-joint torque/speed cards + collision alert
+- `src/components/simulation/SimulationPanel.tsx` — sidebar composing all sim UI
+
+**Key decisions:**
+- Arm uses FK (not Rapier joints) — deterministic, no instability
+- Environment uses Rapier dynamic bodies — boxes physically react to kinematic gripper sphere
+- All IK solved at compile time — render loop is pure lookup, guaranteed 60fps
+- Collision detection baked into frames via AABB — reliable, not Rapier event-dependent
+- SegmentChain is a recursive component — rotations accumulate via nested Three.js groups
+
+- ✅ Task executor + deterministic motion compiler are operational (`TaskSpec` graph -> `ExecutionPlan` frames)
+- ✅ Browser skill executor supports the current rigid-object pick/place flow
+- ✅ Playback controls live: compile, play/pause, rewind, step, speed 0.25x–4x, jump-to-end
+- ✅ Loop toggle + skip-collision-pause toggle wired via Jotai (`loopAtom`, `skipCollisionPauseAtom`)
+- ✅ Reverse playback + reset controls added to transport
+- ✅ Timeline scrubber live with collision markers + grip-empty warning markers
+- ✅ Joint HUD + Physics metrics panels live and continuously updated
+- ✅ Environment objects are active in scene + collision warnings now include surfaces (shelf/table)
+- ✅ Camera focus-cycle and reset controls added to SimViewer
+- ✅ Live tool-point coordinate readout (X/Y) added to simulation viewport (bottom-right)
+- ✅ Physics metrics switched to per-joint line-by-line row layout
+- ✅ Dynamic object reset on loop/rewind frame 0 (translation/rotation/velocities reset)
+- ✅ Grip carry no-snap offset tracking implemented
+- ✅ Approach-target freeze + runtime-correct grab alignment implemented (`approachTargetId` in `SimFrame`)
+- ✅ Tasks canvas state now persists when switching tabs away from and back to Tasks
 - ❌ Rapier rigid body per arm segment (Box + Cylinder colliders)
 - ❌ Joint constraints — revolute (rotating), prismatic (sliding)
-- ❌ Task executor — reads task JSON blocks, drives simulation frame-by-frame
-- ❌ Motion compiler — `TaskSpec` → deterministic motion primitives and execution frames
-- ❌ Browser skill executor — reliable support for pick/place/stack scenarios before cloth
-- ❌ Playback controls — play / pause / rewind / step-frame / speed 0.25x–4x
-- ❌ Timeline scrubber — click any frame to jump
-- ❌ Joint angle HUD — J1–J5 angles + gripper state live during playback
-- ❌ Physics metrics panel — torque, velocity, acceleration per joint
-- ❌ Collision highlight — red mesh flash + auto-rewind to collision frame
-- ❌ Path trail — glowing trajectory line behind end-effector
-- ❌ Environment objects — table, shelf, box, sock pile, drawer
+- ❌ Collision highlight mesh flash + auto-rewind polish
 
 **Deliverable:** Smooth 60fps physics simulation. Collision detection working.
 
@@ -345,17 +425,22 @@ mirai/
     ├── vite-env.d.ts            # React 18 JSX augmentation for R3F
     ├── types/
     │   ├── arm.ts               # ArmSegment, GripperConfig, BOMItem, ValidationResult, ArmConfig
-    │   └── task.ts              # SceneGraph, TaskSpec, TaskBlock, ValidationReport, ExecutionPlan
+    │   ├── task.ts              # SceneGraph, TaskSpec, TaskBlock, ValidationReport, ExecutionPlan
+    │   └── simulation.ts        # SimFrame, ExecutionPlan, PlaybackStatus, JointMetrics
     ├── store/
     │   ├── atoms.ts             # Jotai atoms: armSegments, armGripper, selectedSegmentId, isAdvancedMode, etc.
-    │   └── taskAtoms.ts         # taskNodes, taskEdges, pendingAddNode, ghostArmTarget, selectedNodeId
+    │   ├── taskAtoms.ts         # taskNodes, taskEdges, pendingAddNode, ghostArmTarget, selectedNodeId
+    │   └── simAtoms.ts          # compiledPlan, playback state, frame/speed, loop and collision pause toggles
     ├── utils/
     │   ├── armPhysics.ts        # calculateMaxReach, calculateTorqueAtJoint, validateArm
     │   ├── bomPricing.ts        # calculateBOM, getTotalBOMCost (72-piece BOM)
     │   ├── armExport.ts         # exportArmConfig, parseArmConfig, loadArmConfigFromFile
     │   ├── sceneRegistry.ts     # Default scene objects + target zones
     │   ├── taskValidation.ts    # validateTask() pure function
-    │   └── taskExport.ts        # exportTaskJson, parseTaskJson, loadTaskFromFile
+    │   ├── taskExport.ts        # exportTaskJson, parseTaskJson, loadTaskFromFile
+    │   ├── forwardKinematics.ts # FK for serial arm
+    │   ├── inverseKinematics.ts # FABRIK IK solver
+    │   └── motionCompiler.ts    # Task graph -> deterministic SimFrame[] compiler
     └── components/
         ├── ArmViewer.tsx        # R3F Canvas, forwardRef, resetCamera(), lights, shadows, overlays
         ├── RobotArm.tsx         # Industrial arm: JointHousing, SegmentGroup (useFrame pulse), 3 gripper types
@@ -367,19 +452,29 @@ mirai/
         │   ├── GripperLibrary.tsx    # 3 gripper types: parallel jaw / suction cup / magnetic
         │   ├── ValidationPanel.tsx   # Torque/reach metrics + errors/warnings
         │   └── BOMCounter.tsx        # Live cost + collapsible BOM breakdown
-        └── task-editor/
-            ├── DeletableEdge.tsx     # Custom edge with × delete button at midpoint
-            ├── NodePalette.tsx       # Drag-to-canvas + click-to-add, 6 block types
-            ├── TaskEditorPanel.tsx   # Task name, description, palette, validation footer
-            ├── TaskFlowCanvas.tsx    # ReactFlowProvider + FlowEditor, NODE_TYPES, EDGE_TYPES, undo history
-            └── nodes/
-                ├── StartNode.tsx     # Start (no delete, always required)
-                ├── EndNode.tsx       # End with delete button
-                ├── MoveNode.tsx      # Target, XYZ, speed, approach; delete + issue icons
-                ├── GripNode.tsx      # Open/close toggle (green/red), force slider; delete
-                ├── WaitNode.tsx      # Duration ms input; delete
-                ├── LoopNode.tsx      # Repeat count stepper; delete
-                └── IfNode.tsx        # Condition input, then/else handles; delete
+        ├── task-editor/
+        │   ├── DeletableEdge.tsx     # Custom edge with × delete button at midpoint
+        │   ├── NodePalette.tsx       # Drag-to-canvas + click-to-add, 6 block types
+        │   ├── TaskEditorPanel.tsx   # Task name, description, palette, validation footer
+        │   ├── TaskFlowCanvas.tsx    # ReactFlowProvider + FlowEditor, NODE_TYPES, EDGE_TYPES, undo history
+        │   └── nodes/
+        │       ├── StartNode.tsx     # Start (no delete, always required)
+        │       ├── EndNode.tsx       # End with delete button
+        │       ├── MoveNode.tsx      # Target, XYZ, speed, approach; delete + issue icons
+        │       ├── GripNode.tsx      # Open/close toggle (green/red), force slider; delete
+        │       ├── WaitNode.tsx      # Duration ms input; delete
+        │       ├── LoopNode.tsx      # Repeat count stepper; delete
+        │       └── IfNode.tsx        # Condition input, then/else handles; delete
+        └── simulation/
+          ├── SceneObjects.tsx      # Rapier env objects + held/approach object control
+          ├── SimulatedArm.tsx      # FK-driven articulated arm in simulation
+          ├── PathTrail.tsx         # End-effector trajectory trail
+          ├── SimViewer.tsx         # Simulation canvas + playback runner + camera controls
+          ├── PlaybackControls.tsx  # Compile/transport/speed + loop/collision toggles
+          ├── TimelineScrubber.tsx  # Seekable timeline + collision + grip-empty markers
+          ├── JointHUD.tsx          # Live joint angle HUD
+          ├── PhysicsMetrics.tsx    # Torque/speed metrics + sim alerts
+          └── SimulationPanel.tsx   # Simulation sidebar composition
 ```
 
 **Files that can be deleted:**
@@ -404,10 +499,16 @@ mirai/
 | src/store/taskAtoms.ts | ✅ Complete | Task editor atoms |
 | src/types/arm.ts | ✅ Complete | ArmSegment, GripperConfig, BOMItem, ArmConfig |
 | src/types/task.ts | ✅ Complete | SceneGraph, TaskSpec, TaskBlock, ExecutionPlan |
+| src/types/simulation.ts | ✅ Complete | SimFrame, ExecutionPlan, PlaybackStatus, JointMetrics (+ `approachTargetId`, `gripEmpty`) |
 | src/components/ArmViewer.tsx | ✅ Complete | forwardRef + resetCamera(), lights, shadows |
 | src/components/RobotArm.tsx | ✅ Complete | Industrial redesign: JointHousing, useFrame animations, 3 grippers |
+| src/store/simAtoms.ts | ✅ Complete | compiledPlan, playbackStatus, frame/speed, loop, skipCollisionPause |
+| src/utils/forwardKinematics.ts | ✅ Complete | FK solver for serial arm |
+| src/utils/inverseKinematics.ts | ✅ Complete | FABRIK IK solver |
+| src/utils/motionCompiler.ts | ✅ Complete | Task graph -> SimFrame[] compiler with collision + grip semantics |
 | src/components/arm-designer/* | ✅ Complete | 5 panel components all wired |
 | src/components/task-editor/* | ✅ Complete | 15 files: 7 node types, palette, canvas, deletable edges |
+| src/components/simulation/* | ✅ In Progress | SimViewer, SceneObjects, SimulatedArm, PathTrail, PlaybackControls, TimelineScrubber, JointHUD, PhysicsMetrics, SimulationPanel |
 | server/main.py | ✅ Scaffold | Health check only — no AI endpoints yet (Day 5) |
 | server/requirements.txt | ✅ Complete | MuJoCo 3.x included |
 | pip install | ✅ Done | |

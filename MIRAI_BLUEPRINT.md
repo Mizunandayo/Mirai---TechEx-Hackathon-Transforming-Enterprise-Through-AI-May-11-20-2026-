@@ -39,8 +39,57 @@
 
 ## DAILY PROGRESS TRACKER
 
-> **Today:** Wednesday, May 13, 2026 (Day 3 of 8 — complete) | **Deadline:** Monday, May 19, 2026 — 8:00 AM PST (Philippine Standard Time)
+> **Today:** Thursday, May 14, 2026 (Day 4 of 8 — in progress) | **Deadline:** Monday, May 19, 2026 — 8:00 AM PST (Philippine Standard Time)
 > **Legend:** ✅ Done &nbsp; ❌ Not Started &nbsp; 🔄 In Progress (today)
+
+---
+
+## UPDATED DAILY TASKS (AUTHORITATIVE)
+
+### Day 1 — Foundation + 3D Engine
+✅ Repo, scaffold, dependencies, base 3D viewer, base atoms, FastAPI skeleton all completed
+✅ Segment click-to-select and advanced mode wiring completed
+❌ None pending for Day 1
+
+### Day 2 — Arm Design Studio
+✅ Arm segment editor, gripper library, reach envelope, joint arcs, validation, BOM, save/load all completed
+✅ Design viewport and panel UX polish (camera reset, hint, panel behaviors) completed
+❌ None pending for Day 2
+
+### Day 3 — Task Editor (React Flow)
+✅ 7 node types, palette, deletable edges, validation, undo/export, keyboard shortcuts completed
+✅ Node interaction polish (`nodrag`, semantic grip toggle, edge delete UX) completed
+✅ Task canvas now persists when leaving and returning to Tasks tab
+❌ None pending for Day 3
+
+### Day 4 — Physics Simulation (In Progress)
+✅ FK/IK + deterministic motion compiler pipeline operational
+✅ Playback transport: play/pause/step/rewind/jump/speed + loop + skip-collision + reverse + reset
+✅ Timeline collision/grip-empty markers, live Joint HUD, live Physics Metrics completed
+✅ Camera focus/reset, live viewport tool-point X/Y readout, and per-joint row metrics layout completed
+✅ Dynamic object reset at frame 0, approach-target freeze, and no-snap carry behavior completed
+❌ Rapier rigid body setup for each arm segment
+❌ Revolute/prismatic joint constraints in Rapier
+❌ Collision highlight flash + auto-rewind polish
+
+### Day 5 — Gemini AI Integration (Not Started)
+❌ `/ai/plan` + `/ai/repair` endpoints
+❌ Grounded TaskSpec generation + deterministic repair loop
+❌ Voice input + ReAct Think/Act/Observe panel + pre-flight safety + confidence badge
+
+### Day 6 — Backend + MuJoCo + Export (Not Started)
+❌ Railway deployment + MuJoCo WS pipeline + accuracy badge
+❌ Servo lifespan predictor + side-by-side Rapier vs MuJoCo replay
+❌ Deterministic code/BOM/URDF/QR/signed export pipeline
+
+### Day 7 — Community + Preloads + Presets (Not Started)
+❌ Community browse/import flow + seeded task library
+❌ Famous preload tasks + real robot preset skins
+❌ Full E2E quality pass and 60fps verification
+
+### Day 8 — Polish + Demo Prep + Submit (Not Started)
+❌ Production deploys, final E2E testing, demo video, slide deck
+❌ README final pass, repo cleanup, and submission before deadline
 
 ---
 
@@ -132,18 +181,25 @@
 ### DAY 4 — May 14 (Thursday) · Physics Simulation (Rapier WASM)
 ### ─────────────────────────────────────────────
 
+- ✅ Task executor + motion compiler live (`TaskSpec` graph traversal -> deterministic `SimFrame[]`)
+- ✅ Playback controls live: play / pause / rewind / step / speed 0.25x–4x / jump-to-end
+- ✅ Timeline scrubber live with collision markers + grip-empty warning markers
+- ✅ Joint HUD + Physics metrics panel live during playback
+- ✅ Path trail visualization active in simulation viewer
+- ✅ Environment objects active (table, shelf, box/cylinder/targets) with Rapier bodies
+- ✅ Surface collision warnings fixed (shelf/table now contribute to collision warnings)
+- ✅ Camera UX added (focus cycle + reset)
+- ✅ Loop toggle + skip-collision-pause toggle shipped
+- ✅ Reverse playback + reset transport controls shipped
+- ✅ Dynamic objects reset correctly on frame 0 (loop/rewind)
+- ✅ Grip no-snap carry implemented via runtime grip-offset tracking
+- ✅ Runtime-correct grabbing implemented via approach-target freeze (`approachTargetId` baked in frames)
+- ✅ Live tool-point coordinate readout (X/Y) added in simulation viewport (bottom-right)
+- ✅ Physics metrics switched to per-joint line-by-line row layout for readability
+- ✅ Tasks canvas state now persists when switching tabs away from and back to Tasks
 - ❌ Rapier rigid body setup for each arm segment (Box + Cylinder colliders)
-- ❌ Joint constraints — revolute (rotating), prismatic (sliding) in Rapier
-- ❌ Task executor — reads task JSON blocks, drives Rapier simulation frame-by-frame
-- ❌ Motion compiler — `TaskSpec` → deterministic motion primitives / execution frames
-- ❌ Browser skill executor — reliable pick/place/stack support before deformable demos
-- ❌ Playback controls — play / pause / rewind / step-frame / speed: 0.25x – 4x
-- ❌ Timeline scrubber — click any frame to jump to that position
-- ❌ Joint angle HUD overlay — J1–J5 angles + gripper state shown live during playback
-- ❌ Physics metrics panel — torque, velocity, acceleration per joint
-- ❌ Collision highlight — red mesh flash + auto-rewind to collision frame
-- ❌ Path trail visualization — glowing trajectory line behind arm's end-effector
-- ❌ Environment objects — add table, shelf, box, sock pile, drawer to workspace
+- ❌ Joint constraints — revolute/prismatic in Rapier
+- ❌ Collision highlight visual polish (red mesh flash + auto-rewind behavior polish)
 
 > **Day 4 Deliverable:** Smooth 60fps physics simulation of any task JSON. Collision detection working.
 
@@ -275,14 +331,14 @@
 | Day 1 | May 11 (Sun) | Foundation + 3D Engine | ✅ Complete |
 | Day 2 | May 12 (Tue) | Arm Design Studio | ✅ Complete + UI polished |
 | Day 3 | May 13 (Wed) | Task Editor (React Flow) | ✅ Complete + RobotArm industrial redesign |
-| Day 4 | May 14 (Thu) | Physics Simulation (Rapier) | ❌ Not Started |
+| Day 4 | May 14 (Thu) | Physics Simulation (Rapier) | 🔄 In Progress (core sim + fixes active) |
 | Day 5 | May 15 (Fri) | Gemini AI Integration | ❌ Not Started |
 | Day 6 | May 16 (Sat) | Backend + MuJoCo + Export | ❌ Not Started |
 | Day 7 | May 17 (Sun) | Community + Preloads + Real Robot Skins | ❌ Not Started |
 | Day 8 | May 18–19 (Mon–Tue) | Polish + Demo Prep + Submit | ❌ Not Started |
 
-> **⏰ Time remaining from May 13 evening: ~5.5 days**
-> **Next action: Day 4 — Physics Simulation with Rapier WASM**
+> **⏰ Time remaining from May 14: ~4.5 days**
+> **Next action: Complete Day 4 remaining physics polish, then start Day 5 Gemini integration**
 
 ---
 
