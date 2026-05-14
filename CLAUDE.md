@@ -83,6 +83,8 @@ Browser-based AI-powered robot arm simulator that makes robotics accessible to e
 ✅ Timeline collision/grip-empty markers, live Joint HUD, live Physics Metrics completed
 ✅ Camera focus/reset, live viewport tool-point X/Y readout, and per-joint row metrics layout completed
 ✅ Dynamic object reset at frame 0, approach-target freeze, and no-snap carry behavior completed
+✅ Manual teach/PTP interaction shipped in simulation: hover-highlight arm parts, hold left-click + mouse move to drive hovered joint in real time
+✅ Teach UX controls shipped: camera lock toggle, drag-time highlight latch, and viewport PTP point stack (save, duplicate block, delete, clear, scroll)
 ❌ Rapier rigid body setup for each arm segment
 ❌ Revolute/prismatic joint constraints in Rapier
 ❌ Collision highlight flash + auto-rewind polish
@@ -241,9 +243,9 @@ Browser-based AI-powered robot arm simulator that makes robotics accessible to e
 - `src/utils/motionCompiler.ts` — compileTask(): graph traversal → SimFrame[] with baked IK + collision check
 - `src/store/simAtoms.ts` — compiledPlan, playbackStatus, currentFrame, playbackSpeed, pathTrail (derived)
 - `src/components/simulation/SceneObjects.tsx` — env objects with Rapier bodies (fixed surfaces, dynamic boxes/cylinders)
-- `src/components/simulation/SimulatedArm.tsx` — FK-driven NESTED GROUP arm (proper articulation), kinematic Rapier sphere at gripper
+- `src/components/simulation/SimulatedArm.tsx` — FK-driven NESTED GROUP arm (proper articulation), kinematic Rapier sphere at gripper, hover/drag teach hooks
 - `src/components/simulation/PathTrail.tsx` — glowing end-effector trail (BufferGeometry, pre-allocated)
-- `src/components/simulation/SimViewer.tsx` — R3F Canvas + Physics wrapper + useSimPlayback() engine
+- `src/components/simulation/SimViewer.tsx` — R3F Canvas + Physics wrapper + useSimPlayback() engine + manual teach/PTP controls
 - `src/components/simulation/PlaybackControls.tsx` — compile + play/pause/step/rewind + 5 speed presets
 - `src/components/simulation/TimelineScrubber.tsx` — seekable timeline with collision markers
 - `src/components/simulation/JointHUD.tsx` — J0–JN angles + torque + velocity + at-limit highlight
@@ -467,9 +469,9 @@ mirai/
         │       └── IfNode.tsx        # Condition input, then/else handles; delete
         └── simulation/
           ├── SceneObjects.tsx      # Rapier env objects + held/approach object control
-          ├── SimulatedArm.tsx      # FK-driven articulated arm in simulation
+          ├── SimulatedArm.tsx      # FK-driven articulated arm in simulation + hover/drag teach hooks
           ├── PathTrail.tsx         # End-effector trajectory trail
-          ├── SimViewer.tsx         # Simulation canvas + playback runner + camera controls
+          ├── SimViewer.tsx         # Simulation canvas + playback runner + camera + manual teach/PTP controls
           ├── PlaybackControls.tsx  # Compile/transport/speed + loop/collision toggles
           ├── TimelineScrubber.tsx  # Seekable timeline + collision + grip-empty markers
           ├── JointHUD.tsx          # Live joint angle HUD

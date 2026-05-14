@@ -68,6 +68,8 @@
 ✅ Timeline collision/grip-empty markers, live Joint HUD, live Physics Metrics completed
 ✅ Camera focus/reset, live viewport tool-point X/Y readout, and per-joint row metrics layout completed
 ✅ Dynamic object reset at frame 0, approach-target freeze, and no-snap carry behavior completed
+✅ Manual teach/PTP interaction shipped in simulation: hover-highlight arm parts, hold left-click + mouse move to drive hovered joint in real time
+✅ Teach UX controls shipped: camera lock toggle, drag-time highlight latch, and viewport PTP point stack (save, duplicate block, delete, clear, scroll)
 ❌ Rapier rigid body setup for each arm segment
 ❌ Revolute/prismatic joint constraints in Rapier
 ❌ Collision highlight flash + auto-rewind polish

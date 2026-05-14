@@ -5,10 +5,11 @@ import { Canvas } from '@react-three/fiber'
 import { OrbitControls, PerspectiveCamera, Grid, Html } from '@react-three/drei'
 import { Physics } from '@react-three/rapier'
 import { useAtom, useAtomValue } from 'jotai'
-import { compiledPlanAtom, playbackStatusAtom, currentFrameAtom, currentSimFrameAtom, playbackSpeedAtom, loopAtom, skipCollisionPauseAtom } from '../../store/simAtoms'
+import { compiledPlanAtom, playbackStatusAtom, currentFrameAtom, currentSimFrameAtom, playbackSpeedAtom, loopAtom, skipCollisionPauseAtom, ptpSequencePlayingAtom } from '../../store/simAtoms'
 import { sceneGraphAtom } from '../../store/taskAtoms'
 import { armSegmentsAtom } from '../../store/atoms'
 import { forwardKinematics, clampPitchAngles } from '../../utils/forwardKinematics'
+import { solveIK } from '../../utils/inverseKinematics'
 import SceneObjects from './SceneObjects'
 import SimulatedArm from './SimulatedArm'
 import PathTrail from './PathTrail'
@@ -263,6 +264,7 @@ function SimScene({
 export default function SimViewer() {
   useSimPlayback()
   const status = useAtomValue(playbackStatusAtom)
+  const [, setPlaybackStatus] = useAtom(playbackStatusAtom)
   const currentSimFrame = useAtomValue(currentSimFrameAtom)
   const segments = useAtomValue(armSegmentsAtom)
   const [showLabels, setShowLabels] = useState(false)
@@ -277,6 +279,13 @@ export default function SimViewer() {
   const [teachPitchAngles, setTeachPitchAngles] = useState<number[]>([])
   const [teachWaistYawDeg, setTeachWaistYawDeg] = useState(0)
   const [ptpPoints, setPtpPoints] = useState<Array<{ x: number; y: number; z: number }>>([])
+  const [ptpSequencePlaying, setPtpSequencePlaying] = useAtom(ptpSequencePlayingAtom)
+  const ptpSequenceTimerRef = useRef<number | null>(null)
+
+  // Editable X/Y/Z input state for live readout
+  const [manualX, setManualX] = useState('')
+  const [manualY, setManualY] = useState('')
+  const [manualZ, setManualZ] = useState('')
 
   const activeHighlightPartId = isMouseIkDragging ? (dragPartId ?? selectedPartId) : selectedPartId
 
@@ -304,6 +313,13 @@ export default function SimViewer() {
 
   const activeTool = teachMode && teachPose ? teachPose.endEffectorPos : frameTool
   const [toolX = 0, toolY = 0, toolZ = 0] = activeTool
+
+  // Keep the editable coordinate fields synced with the live end-effector pose.
+  useEffect(() => {
+    setManualX(toolX.toFixed(3))
+    setManualY(toolY.toFixed(3))
+    setManualZ(toolZ.toFixed(3))
+  }, [toolX, toolY, toolZ])
 
   function getRevoluteIndexForPart(partId: string | null): number {
     if (!partId) return -1
@@ -373,6 +389,14 @@ export default function SimViewer() {
     complete: { label: 'Complete', color: '#3b82f6' },
   }
   const statusInfo = STATUS_INFO[status] ?? STATUS_INFO.idle
+  const isTransportPlaying = status === 'playing' || status === 'reverse_playing'
+
+  useEffect(() => {
+    if (!isTransportPlaying) return
+    // Regular playback takes control of the arm, so disable teach interactions.
+    if (teachMode) setTeachMode(false)
+    if (teachCameraLocked) setTeachCameraLocked(false)
+  }, [isTransportPlaying, teachMode, teachCameraLocked])
 
   const FOCUS_LABELS = ['Base', 'Mid', 'Top'] as const
   const FOCUS_DOT_Y  = [13, 8, 3] as const
@@ -385,6 +409,35 @@ export default function SimViewer() {
   function handleReset() {
     setFocusLevel(1)
     setResetSignal((s) => s + 1)
+  }
+
+  function applyManualTarget(nextX: number, nextY: number, nextZ: number) {
+    if (!Number.isFinite(nextX) || !Number.isFinite(nextY) || !Number.isFinite(nextZ)) return
+
+    if (!teachMode) {
+      setTeachMode(true)
+      setTeachCameraLocked(true)
+    }
+
+    const ik = solveIK(segments, [nextX, nextY, nextZ])
+    setTeachWaistYawDeg(ik.waistYawDeg)
+    setTeachPitchAngles(ik.pitchAngles)
+  }
+
+  function handleManualCoordChange(axis: 'x' | 'y' | 'z', raw: string) {
+    if (axis === 'x') setManualX(raw)
+    if (axis === 'y') setManualY(raw)
+    if (axis === 'z') setManualZ(raw)
+
+    const rawX = axis === 'x' ? raw : manualX
+    const rawY = axis === 'y' ? raw : manualY
+    const rawZ = axis === 'z' ? raw : manualZ
+
+    const nextX = rawX === '' ? toolX : Number(rawX)
+    const nextY = rawY === '' ? toolY : Number(rawY)
+    const nextZ = rawZ === '' ? toolZ : Number(rawZ)
+
+    applyManualTarget(nextX, nextY, nextZ)
   }
 
   function handleSaveCurrentPoint() {
@@ -407,8 +460,73 @@ export default function SimViewer() {
   }
 
   function handleClearPoints() {
+    stopPtpSequencePlayback()
     setPtpPoints([])
   }
+
+  function stopPtpSequencePlayback() {
+    if (ptpSequenceTimerRef.current !== null) {
+      window.clearInterval(ptpSequenceTimerRef.current)
+      ptpSequenceTimerRef.current = null
+    }
+    setPtpSequencePlaying(false)
+  }
+
+  function handlePlayAllPoints() {
+    if (ptpPoints.length === 0 || ptpSequencePlaying || isTransportPlaying) return
+
+    setPlaybackStatus('paused')
+    setPtpSequencePlaying(true)
+
+    if (!teachMode) {
+      setTeachMode(true)
+      setTeachCameraLocked(true)
+    }
+
+    const points = ptpPoints.map((pt) => [pt.x, pt.y, pt.z] as [number, number, number])
+    if (points.length === 1) {
+      applyManualTarget(points[0][0], points[0][1], points[0][2])
+      stopPtpSequencePlayback()
+      return
+    }
+
+    let segmentIndex = 0
+    let t = 0
+    const tickMs = 20
+    const segmentDurationMs = 900
+    const step = tickMs / segmentDurationMs
+
+    applyManualTarget(points[0][0], points[0][1], points[0][2])
+
+    ptpSequenceTimerRef.current = window.setInterval(() => {
+      const from = points[segmentIndex]
+      const to = points[segmentIndex + 1]
+      t += step
+
+      const alpha = Math.min(t, 1)
+      const x = from[0] + (to[0] - from[0]) * alpha
+      const y = from[1] + (to[1] - from[1]) * alpha
+      const z = from[2] + (to[2] - from[2]) * alpha
+      applyManualTarget(x, y, z)
+
+      if (alpha >= 1) {
+        segmentIndex += 1
+        t = 0
+        if (segmentIndex >= points.length - 1) {
+          stopPtpSequencePlayback()
+        }
+      }
+    }, tickMs)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (ptpSequenceTimerRef.current !== null) {
+        window.clearInterval(ptpSequenceTimerRef.current)
+      }
+      setPtpSequencePlaying(false)
+    }
+  }, [setPtpSequencePlaying])
 
   function handleTeachModeToggle() {
     setTeachMode((prev) => {
@@ -565,14 +683,27 @@ export default function SimViewer() {
         </div>
 
         {ptpPoints.length > 0 && (
-          <button
-            className="sim-ptp-clear-btn"
-            onClick={handleClearPoints}
-            type="button"
-            title="Clear all saved points"
-          >
-            Clear all
-          </button>
+          <div className="sim-ptp-action-row" style={{ display: 'flex', gap: 8 }}>
+            <button
+              className="sim-ptp-clear-btn"
+              onClick={handleClearPoints}
+              type="button"
+              title="Clear all saved points"
+              disabled={ptpSequencePlaying}
+            >
+              Clear all
+            </button>
+            <button
+              className="sim-ptp-clear-btn"
+              onClick={handlePlayAllPoints}
+              type="button"
+              title="Play all saved points"
+              disabled={ptpSequencePlaying || isTransportPlaying}
+              style={{ flex: 1 }}
+            >
+              {ptpSequencePlaying ? 'Playing...' : 'Play all'}
+            </button>
+          </div>
         )}
 
         <button
@@ -584,10 +715,44 @@ export default function SimViewer() {
           Save current point
         </button>
 
-        <div className="sim-tool-point-readout" aria-live="polite">
+        <div className="sim-tool-point-readout" aria-live="polite" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span className="sim-tool-point-label">Point</span>
-          <span className="sim-tool-point-coord">X {toolX.toFixed(3)}</span>
-          <span className="sim-tool-point-coord">Y {toolY.toFixed(3)}</span>
+          X
+          <input
+            type="number"
+            step="0.001"
+            min="-999"
+            max="999"
+            className="sim-tool-point-coord sim-tool-point-input"
+            style={{ width: 56 }}
+            aria-label="Live X coordinate"
+            value={manualX}
+            onChange={(e) => handleManualCoordChange('x', e.target.value)}
+          />
+          Y
+          <input
+            type="number"
+            step="0.001"
+            min="-999"
+            max="999"
+            className="sim-tool-point-coord sim-tool-point-input"
+            style={{ width: 56 }}
+            aria-label="Live Y coordinate"
+            value={manualY}
+            onChange={(e) => handleManualCoordChange('y', e.target.value)}
+          />
+          Z
+          <input
+            type="number"
+            step="0.001"
+            min="-999"
+            max="999"
+            className="sim-tool-point-coord sim-tool-point-input"
+            style={{ width: 56 }}
+            aria-label="Live Z coordinate"
+            value={manualZ}
+            onChange={(e) => handleManualCoordChange('z', e.target.value)}
+          />
         </div>
       </div>
     </div>

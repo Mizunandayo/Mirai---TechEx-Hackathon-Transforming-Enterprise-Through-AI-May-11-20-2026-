@@ -88,6 +88,8 @@
 ✅ Timeline collision/grip-empty markers, live Joint HUD, live Physics Metrics completed
 ✅ Camera focus/reset, live viewport tool-point X/Y readout, and per-joint row metrics layout completed
 ✅ Dynamic object reset at frame 0, approach-target freeze, and no-snap carry behavior completed
+✅ Manual teach/PTP mode shipped: hover-to-highlight arm parts, hold left-click + mouse move to drive joints in real time, camera lock toggle, highlight latch during drag
+✅ PTP point stack controls shipped in viewport: save current point, duplicate-save prevention, per-point delete, clear all, scrollable list
 ❌ Rapier rigid body setup for each arm segment
 ❌ Revolute/prismatic joint constraints in Rapier
 ❌ Collision highlight flash + auto-rewind polish
@@ -163,9 +165,9 @@
 | `src/components/task-editor/nodes/LoopNode.tsx` | ✅ Repeat count stepper; delete |
 | `src/components/task-editor/nodes/IfNode.tsx` | ✅ Condition input, then/else handles; delete |
 | `src/components/simulation/SceneObjects.tsx` | ✅ Rapier bodies + held-object pinning + approach-target freeze + frame-0 reset |
-| `src/components/simulation/SimulatedArm.tsx` | ✅ FK-driven nested articulation + kinematic gripper collider |
+| `src/components/simulation/SimulatedArm.tsx` | ✅ FK-driven nested articulation + kinematic gripper collider + hover/drag teach interaction hooks |
 | `src/components/simulation/PathTrail.tsx` | ✅ End-effector trail rendering |
-| `src/components/simulation/SimViewer.tsx` | ✅ Canvas + playback engine + camera focus/reset controls |
+| `src/components/simulation/SimViewer.tsx` | ✅ Canvas + playback engine + camera focus/reset + manual teach/PTP overlay controls |
 | `src/components/simulation/PlaybackControls.tsx` | ✅ Compile/transport/speed + loop + skip-collision toggles + redesigned layout |
 | `src/components/simulation/TimelineScrubber.tsx` | ✅ Seekable timeline + collision + grip-empty markers |
 | `src/components/simulation/JointHUD.tsx` | ✅ Live joint state + compact redesigned layout |
@@ -204,6 +206,9 @@ Completed in-session fixes:
 - Physics metrics panel switched to line-by-line per-joint rows (instead of compact card row)
 - Simulation panel child layout redesigned to a more minimal, scannable structure
 - Task canvas state now persists when navigating away from and back to the Tasks tab
+- Manual teach/PTP interaction shipped: hover-highlight arm parts, hold left-click + drag to drive hovered joint
+- Teach UX polish shipped: camera lock toggle, drag-time highlight latch, and updated on-screen guidance
+- PTP stack shipped: save current point, duplicate-save block, per-point delete, clear-all action, scrollable saved list
 
 ### RobotArm Industrial Redesign ✅ (Day 2 extended — completed Day 3)
 Complete `RobotArm.tsx` rewrite with:

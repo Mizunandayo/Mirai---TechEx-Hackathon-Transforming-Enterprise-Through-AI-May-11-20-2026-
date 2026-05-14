@@ -13,6 +13,7 @@ export const currentFrameAtom      = atom<number>(0)
 export const playbackSpeedAtom     = atom<PlaybackSpeed>(1)
 export const loopAtom              = atom<boolean>(false)
 export const skipCollisionPauseAtom = atom<boolean>(false)
+export const ptpSequencePlayingAtom = atom<boolean>(false)
 
 
 // Derived atoms

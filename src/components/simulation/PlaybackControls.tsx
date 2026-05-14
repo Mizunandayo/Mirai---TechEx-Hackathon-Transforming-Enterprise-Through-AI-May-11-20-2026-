@@ -2,7 +2,7 @@
 
 import { useAtom, useAtomValue } from 'jotai'
 import { useEffect } from 'react'
-import { taskNodesAtom, taskEdgesAtom, sceneGraphAtom } from '../../store/taskAtoms'
+import { taskNodesAtom, taskEdgesAtom, sceneGraphAtom, taskNameAtom } from '../../store/taskAtoms'
 import { armSegmentsAtom } from '../../store/atoms'
 import {
   compiledPlanAtom,
@@ -11,6 +11,7 @@ import {
   playbackSpeedAtom,
   loopAtom,
   skipCollisionPauseAtom,
+  ptpSequencePlayingAtom,
 } from '../../store/simAtoms'
 import { compileTask } from '../../utils/motionCompiler'
 import TimelineScrubber from './TimelineScrubber'
@@ -40,6 +41,7 @@ export default function PlaybackControls() {
   const edges    = useAtomValue(taskEdgesAtom)
   const segments = useAtomValue(armSegmentsAtom)
   const scene    = useAtomValue(sceneGraphAtom)
+  const taskName = useAtomValue(taskNameAtom)
 
   const [plan,   setPlan]   = useAtom(compiledPlanAtom)
   const [status, setStatus] = useAtom(playbackStatusAtom)
@@ -47,11 +49,7 @@ export default function PlaybackControls() {
   const [speed,  setSpeed]  = useAtom(playbackSpeedAtom)
   const [loop, setLoop] = useAtom(loopAtom)
   const [skipCollisionPause, setSkipCollisionPause] = useAtom(skipCollisionPauseAtom)
-
-
-
-  const taskNameNode = nodes.find((n) => n.data.kind === 'start')
-  const taskName     = taskNameNode?.data.label ?? 'Untitled Task'
+  const ptpSequencePlaying = useAtomValue(ptpSequencePlayingAtom)
 
 
 
@@ -108,10 +106,26 @@ export default function PlaybackControls() {
   const totalFrames = plan?.totalFrames ?? 0
 
   return (
-    <section className="sim-section">
+    <section className="sim-section" aria-disabled={ptpSequencePlaying} style={ptpSequencePlaying ? { opacity: 0.56 } : undefined}>
       <div className="sim-playback-top">
-        <div className="sim-playback-header-row" style={{ alignItems: 'center', display: 'flex', gap: 16, width: '100%' }}>
+        <div className="sim-playback-header-row" style={{ alignItems: 'center', gap: 16, width: '100%' }}>
           <div className="sim-playback-label" style={{ flexShrink: 0 }}>Simulation player</div>
+          <div
+            style={{
+              minWidth: 0,
+              fontFamily: 'Poppins, sans-serif',
+              fontSize: '0.76rem',
+              fontWeight: 600,
+              color: '#555555',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+            title={taskName}
+            aria-label={`Current task: ${taskName}`}
+          >
+            Task: {taskName}
+          </div>
         </div>
         
       </div>
@@ -120,6 +134,7 @@ export default function PlaybackControls() {
         <button
           className={`sim-transport-btn sim-control-btn${loop ? ' sim-control-btn--active' : ''}`}
           onClick={() => setLoop(!loop)}
+          disabled={ptpSequencePlaying}
           title="Loop playback"
           aria-label="Loop playback"
           aria-pressed={loop}
@@ -137,6 +152,7 @@ export default function PlaybackControls() {
         <button
           className={`sim-transport-btn sim-control-btn${skipCollisionPause ? ' sim-control-btn--active' : ''}`}
           onClick={() => setSkipCollisionPause(!skipCollisionPause)}
+          disabled={ptpSequencePlaying}
           title="Bypass collision pause"
           aria-label="Bypass collision pause"
           aria-pressed={skipCollisionPause}
@@ -153,7 +169,7 @@ export default function PlaybackControls() {
                 <button
           className="sim-transport-btn sim-transport-btn--small"
           onClick={handleReset}
-          disabled={noplan}
+          disabled={noplan || ptpSequencePlaying}
           title="Reset playback"
         >
           <svg width="16" height="16" viewBox="0 0 14 14" fill="none">
@@ -168,7 +184,7 @@ export default function PlaybackControls() {
         <button
           className="sim-transport-btn sim-transport-btn--small"
           onClick={handleStepBack}
-          disabled={noplan || frame === 0}
+          disabled={noplan || frame === 0 || ptpSequencePlaying}
           title="Step back"
         >
           <svg width="16" height="16" viewBox="0 0 14 14" fill="none">
@@ -180,7 +196,7 @@ export default function PlaybackControls() {
         <button
           className="sim-transport-btn sim-transport-btn--small"
           onClick={handleReversePlay}
-          disabled={noplan}
+          disabled={noplan || ptpSequencePlaying}
           title="Play in reverse"
         >
           <svg width="16" height="16" viewBox="0 0 14 14" fill="none">
@@ -191,6 +207,7 @@ export default function PlaybackControls() {
           <button
             className="sim-transport-btn sim-transport-btn--primary"
             onClick={handlePause}
+            disabled={ptpSequencePlaying}
             title="Pause"
           >
             <svg width="18" height="18" viewBox="0 0 14 14" fill="none">
@@ -202,7 +219,7 @@ export default function PlaybackControls() {
           <button
             className="sim-transport-btn sim-transport-btn--primary"
             onClick={handlePlay}
-            disabled={noplan}
+            disabled={noplan || ptpSequencePlaying}
             title="Play"
           >
             <svg width="18" height="18" viewBox="0 0 14 14" fill="none">
@@ -213,7 +230,7 @@ export default function PlaybackControls() {
         <button
           className="sim-transport-btn sim-transport-btn--small"
           onClick={handleStepForward}
-          disabled={noplan || frame >= totalFrames - 1}
+          disabled={noplan || frame >= totalFrames - 1 || ptpSequencePlaying}
           title="Step forward"
         >
           <svg width="16" height="16" viewBox="0 0 14 14" fill="none">
@@ -224,7 +241,7 @@ export default function PlaybackControls() {
         <button
           className="sim-transport-btn sim-transport-btn--small"
           onClick={() => { setFrame(totalFrames - 1); setStatus('complete') }}
-          disabled={noplan}
+          disabled={noplan || ptpSequencePlaying}
           title="Jump to end"
         >
           <svg width="16" height="16" viewBox="0 0 14 14" fill="none">
@@ -240,6 +257,7 @@ export default function PlaybackControls() {
             key={s}
             className={`sim-transport-btn sim-speed-control-btn${speed === s ? ' sim-speed-control-btn--active' : ''}`}
             onClick={() => setSpeed(s)}
+            disabled={ptpSequencePlaying}
             title={`Speed ${SPEED_LABELS[s]}`}
             aria-label={`Speed ${SPEED_LABELS[s]}`}
             aria-pressed={speed === s}
@@ -249,7 +267,9 @@ export default function PlaybackControls() {
           </button>
         ))}
       </div>
-      <TimelineScrubber />
+      <div style={ptpSequencePlaying ? { pointerEvents: 'none', opacity: 0.55 } : undefined}>
+        <TimelineScrubber />
+      </div>
     </section>
   )
 }
