@@ -62,6 +62,18 @@ type StoredTaskFlow = {
   edges: Edge[]
 }
 
+function normalizeFlowPayload(flow: Partial<StoredTaskFlow> | null | undefined): StoredTaskFlow {
+  const nodes = Array.isArray(flow?.nodes) ? flow.nodes : []
+  const edges = Array.isArray(flow?.edges) ? flow.edges : []
+
+  // Always keep at least one Start node in canvas state.
+  if (nodes.length === 0) {
+    return { nodes: [INITIAL_START_NODE], edges: [] }
+  }
+
+  return { nodes, edges }
+}
+
 function loadStoredTaskFlow(): StoredTaskFlow | null {
   if (typeof window === 'undefined') return null
   try {
@@ -69,7 +81,10 @@ function loadStoredTaskFlow(): StoredTaskFlow | null {
     if (!raw) return null
     const parsed = JSON.parse(raw) as Partial<StoredTaskFlow>
     if (!Array.isArray(parsed.nodes) || !Array.isArray(parsed.edges)) return null
-    return { nodes: parsed.nodes as Node<TaskBlock>[], edges: parsed.edges as Edge[] }
+    return normalizeFlowPayload({
+      nodes: parsed.nodes as Node<TaskBlock>[],
+      edges: parsed.edges as Edge[],
+    })
   } catch {
     return null
   }
@@ -77,7 +92,7 @@ function loadStoredTaskFlow(): StoredTaskFlow | null {
 
 function persistTaskFlow(nodes: Node<TaskBlock>[], edges: Edge[]) {
   if (typeof window === 'undefined') return
-  const payload: StoredTaskFlow = { nodes, edges }
+  const payload: StoredTaskFlow = normalizeFlowPayload({ nodes, edges })
   window.localStorage.setItem(TASK_FLOW_STORAGE_KEY, JSON.stringify(payload))
 }
 
@@ -164,6 +179,13 @@ function FlowEditor() {
     const report = validateTask(nodes, edges, armSegments)
     setValidation(report)
   }, [nodes, edges, armSegments, setTaskNodes, setTaskEdges, setValidation])
+
+  // Self-heal corrupted/empty canvas state.
+  useEffect(() => {
+    if (nodes.length > 0) return
+    setNodes([INITIAL_START_NODE])
+    setEdges([])
+  }, [nodes.length, setNodes, setEdges])
 
   const hasUserTasks = nodes.length > 1 || edges.length > 0
 
@@ -323,10 +345,20 @@ function FlowEditor() {
     function onLoadTask(e: Event) {
       const { detail } = e as CustomEvent
       if (!detail) return
-      setNodes(detail.nodes ?? [INITIAL_START_NODE])
-      setEdges(detail.edges ?? [])
+      const next = normalizeFlowPayload(detail)
+      setNodes(next.nodes)
+      setEdges(next.edges)
       historyRef.current = []
       historyIdxRef.current = -1
+
+      window.dispatchEvent(
+        new CustomEvent('mirai:taskflow-loaded', {
+          detail: {
+            nodeCount: next.nodes.length,
+            edgeCount: next.edges.length,
+          },
+        }),
+      )
     }
     window.addEventListener('mirai:load-task', onLoadTask)
     return () => window.removeEventListener('mirai:load-task', onLoadTask)

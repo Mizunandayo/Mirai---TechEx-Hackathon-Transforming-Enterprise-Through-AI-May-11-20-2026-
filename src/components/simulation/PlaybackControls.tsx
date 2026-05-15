@@ -1,5 +1,5 @@
 import { useAtom, useAtomValue } from 'jotai'
-import { useEffect } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { taskNodesAtom, taskEdgesAtom, sceneGraphAtom, taskNameAtom } from '../../store/taskAtoms'
 import { armSegmentsAtom } from '../../store/atoms'
 import {
@@ -10,6 +10,7 @@ import {
   loopAtom,
   skipCollisionPauseAtom,
   ptpSequencePlayingAtom,
+  simBaselineObjectStatesAtom,
 } from '../../store/simAtoms'
 import { compileTask } from '../../utils/motionCompiler'
 import TimelineScrubber from './TimelineScrubber'
@@ -50,16 +51,112 @@ export default function PlaybackControls() {
   const [speed, setSpeed] = useAtom(playbackSpeedAtom)
   const [loop, setLoop] = useAtom(loopAtom)
   const [skipCollisionPause, setSkipCollisionPause] = useAtom(skipCollisionPauseAtom)
+  const [, setBaselineObjectStates] = useAtom(simBaselineObjectStatesAtom)
   const ptpSequencePlaying = useAtomValue(ptpSequencePlayingAtom)
+  const pendingAutoPlayRef = useRef(false)
+  const sceneSnapshotRef = useRef(scene)
+  const lastCompiledSignatureRef = useRef<string>('')
+
+  const isPlaybackActive =
+    status === 'playing' || status === 'reverse_playing' || status === 'collision_paused'
+
+  const compileSignature = useMemo(() => {
+    const compactNodes = nodes.map((node) => ({
+      id: node.id,
+      type: node.type,
+      data: node.data,
+      position: node.position,
+    }))
+    const compactEdges = edges.map((edge) => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      sourceHandle: edge.sourceHandle,
+      targetHandle: edge.targetHandle,
+    }))
+    const compactSegments = segments.map((segment) => ({
+      id: segment.id,
+      length: segment.length,
+      mass: segment.mass,
+      joint: segment.joint,
+      min: segment.jointLimitMin,
+      max: segment.jointLimitMax,
+    }))
+
+    return JSON.stringify({
+      taskName,
+      nodes: compactNodes,
+      edges: compactEdges,
+      segments: compactSegments,
+    })
+  }, [taskName, nodes, edges, segments])
 
   useEffect(() => {
-    const compiled = compileTask(nodes, edges, segments, scene, taskName)
+    // Freeze scene snapshot while playback is active to prevent live scene-sync updates
+    // from re-triggering plan resets mid-execution.
+    if (isPlaybackActive) return
+    if (frame !== 0) return
+    sceneSnapshotRef.current = scene
+  }, [scene, isPlaybackActive, frame])
+
+  useEffect(() => {
+    if (isPlaybackActive) return
+    if (compileSignature === lastCompiledSignatureRef.current && plan) return
+
+    const compiled = compileTask(nodes, edges, segments, sceneSnapshotRef.current, taskName)
     if (compiled) {
+      const baseline = Object.fromEntries(
+        sceneSnapshotRef.current.objects.map((obj) => [
+          obj.id,
+          {
+            position: [...obj.position] as [number, number, number],
+            rotation: [0, 0, 0, 1] as [number, number, number, number],
+          },
+        ]),
+      )
+      setBaselineObjectStates(baseline)
       setPlan(compiled)
       setStatus('idle')
       setFrame(0)
+      lastCompiledSignatureRef.current = compileSignature
     }
-  }, [nodes, edges, segments, scene, taskName, setPlan, setStatus, setFrame])
+  }, [
+    compileSignature,
+    nodes,
+    edges,
+    segments,
+    taskName,
+    isPlaybackActive,
+    plan,
+    setPlan,
+    setBaselineObjectStates,
+    setStatus,
+    setFrame,
+  ])
+
+  useEffect(() => {
+    const handleAutoPlay = () => {
+      if (ptpSequencePlaying) return
+      if (!plan) {
+        pendingAutoPlayRef.current = true
+        return
+      }
+      setFrame(0)
+      setStatus('playing')
+    }
+
+    window.addEventListener('mirai:auto-play-sim', handleAutoPlay)
+    return () => {
+      window.removeEventListener('mirai:auto-play-sim', handleAutoPlay)
+    }
+  }, [plan, ptpSequencePlaying, setFrame, setStatus])
+
+  useEffect(() => {
+    if (!pendingAutoPlayRef.current || !plan || ptpSequencePlaying) return
+    pendingAutoPlayRef.current = false
+    setFrame(0)
+    setStatus('playing')
+  }, [plan, ptpSequencePlaying, setFrame, setStatus])
 
   const handlePlay = () => {
     if (!plan) return

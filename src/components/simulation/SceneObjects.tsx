@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { useAtomValue } from 'jotai'
+import { useAtomValue, useSetAtom } from 'jotai'
 import { Quaternion, Mesh } from 'three'
 import {
   RigidBody,
@@ -12,7 +12,7 @@ import { sceneGraphAtom } from '../../store/taskAtoms'
 import {
   currentSimFrameAtom,
   currentFrameAtom,
-  collisionFlashMsAtom,
+  simBaselineObjectStatesAtom,
 } from '../../store/simAtoms'
 
 function CollisionHaloBox({
@@ -20,13 +20,11 @@ function CollisionHaloBox({
   h,
   d,
   active,
-  flashMs,
 }: {
   w: number
   h: number
   d: number
   active: boolean
-  flashMs: number
 }) {
   const ref = useRef<Mesh>(null)
 
@@ -53,12 +51,10 @@ function CollisionHaloCylinder({
   r,
   h,
   active,
-  flashMs,
 }: {
   r: number
   h: number
   active: boolean
-  flashMs: number
 }) {
   const ref = useRef<Mesh>(null)
 
@@ -83,9 +79,10 @@ function CollisionHaloCylinder({
 
 export default function SceneObjects() {
   const scene = useAtomValue(sceneGraphAtom)
+  const setSceneGraph = useSetAtom(sceneGraphAtom)
   const currentFrame = useAtomValue(currentSimFrameAtom)
   const frameNumber = useAtomValue(currentFrameAtom)
-  const flashMs = useAtomValue(collisionFlashMsAtom)
+  const baselineObjectStates = useAtomValue(simBaselineObjectStatesAtom)
 
   const frameRef = useRef(currentFrame)
   frameRef.current = currentFrame
@@ -93,6 +90,7 @@ export default function SceneObjects() {
   const bodyRefs = useRef<Map<string, RigidBodyApi>>(new Map())
   const prevHeldIdRef = useRef<string | null>(null)
   const gripOffsetRef = useRef<[number, number, number]>([0, 0, 0])
+  const lastSceneSyncRef = useRef(0)
 
   useEffect(() => {
     if (frameNumber !== 0) return
@@ -100,19 +98,55 @@ export default function SceneObjects() {
     prevHeldIdRef.current = null
     gripOffsetRef.current = [0, 0, 0]
 
+    const hasBaseline = Object.keys(baselineObjectStates).length > 0
+
     for (const obj of scene.objects) {
       const body = bodyRefs.current.get(obj.id)
       if (!body) continue
 
-      const [x, y, z] = obj.position
+      const baseline = baselineObjectStates[obj.id]
+      const resetPos = baseline?.position ?? obj.position
+      const resetRot = baseline?.rotation ?? ([0, 0, 0, 1] as [number, number, number, number])
+      const [x, y, z] = resetPos
+      const [qx, qy, qz, qw] = resetRot
       body.setTranslation({ x, y, z }, true)
-      body.setRotation(new Quaternion(0, 0, 0, 1), true)
-      body.setLinvel({ x: 0, y: 0, z: 0 }, false)
-      body.setAngvel({ x: 0, y: 0, z: 0 }, false)
+      body.setRotation(new Quaternion(qx, qy, qz, qw), true)
+      body.setLinvel({ x: 0, y: 0, z: 0 }, true)
+      body.setAngvel({ x: 0, y: 0, z: 0 }, true)
     }
-  }, [frameNumber, scene.objects])
 
-  useFrame(() => {
+    if (hasBaseline) {
+      setSceneGraph((prev) => ({
+        ...prev,
+        objects: prev.objects.map((obj) => {
+          const reset = baselineObjectStates[obj.id]
+          return reset ? { ...obj, position: reset.position } : obj
+        }),
+      }))
+    }
+  }, [frameNumber, baselineObjectStates, scene.objects, setSceneGraph])
+
+  useFrame(({ clock }) => {
+    const hasBaseline = Object.keys(baselineObjectStates).length > 0
+
+    if (frameNumber === 0 && hasBaseline) {
+      // Hold baseline pose at frame 0 so resting physics cannot drift objects
+      // (e.g. cylinder rolling sideways) before next run.
+      for (const obj of scene.objects) {
+        const baseline = baselineObjectStates[obj.id]
+        const body = bodyRefs.current.get(obj.id)
+        if (!baseline || !body) continue
+
+        const [x, y, z] = baseline.position
+        const [qx, qy, qz, qw] = baseline.rotation
+        body.setTranslation({ x, y, z }, true)
+        body.setRotation(new Quaternion(qx, qy, qz, qw), true)
+        body.setLinvel({ x: 0, y: 0, z: 0 }, true)
+        body.setAngvel({ x: 0, y: 0, z: 0 }, true)
+      }
+      return
+    }
+
     const frame = frameRef.current
     const currentHeld = frame?.heldObjectId ?? null
 
@@ -146,16 +180,52 @@ export default function SceneObjects() {
       prevHeldIdRef.current = currentHeld
     }
 
-    if (!currentHeld || !frame?.heldObjectPos) return
-    const body = bodyRefs.current.get(currentHeld)
-    if (!body) return
+    if (currentHeld && frame?.heldObjectPos) {
+      const body = bodyRefs.current.get(currentHeld)
+      if (body) {
+        const [bx, by, bz] = frame.heldObjectPos
+        const [ox, oy, oz] = gripOffsetRef.current
 
-    const [bx, by, bz] = frame.heldObjectPos
-    const [ox, oy, oz] = gripOffsetRef.current
+        body.setTranslation({ x: bx + ox, y: by + oy, z: bz + oz }, true)
+        body.setLinvel({ x: 0, y: 0, z: 0 }, false)
+        body.setAngvel({ x: 0, y: 0, z: 0 }, false)
+      }
+    }
 
-    body.setTranslation({ x: bx + ox, y: by + oy, z: bz + oz }, true)
-    body.setLinvel({ x: 0, y: 0, z: 0 }, false)
-    body.setAngvel({ x: 0, y: 0, z: 0 }, false)
+    // Publish dynamic-object positions back to shared scene state for AI grounding.
+    const now = clock.elapsedTime
+    if (now - lastSceneSyncRef.current < 0.14) return
+    lastSceneSyncRef.current = now
+
+    const updates = new Map<string, [number, number, number]>()
+    for (const obj of scene.objects) {
+      const body = bodyRefs.current.get(obj.id)
+      if (!body) continue
+      const t = body.translation()
+      const next: [number, number, number] = [
+        Number(t.x.toFixed(4)),
+        Number(t.y.toFixed(4)),
+        Number(t.z.toFixed(4)),
+      ]
+
+      const [ox, oy, oz] = obj.position
+      const dx = Math.abs(next[0] - ox)
+      const dy = Math.abs(next[1] - oy)
+      const dz = Math.abs(next[2] - oz)
+      if (dx > 0.002 || dy > 0.002 || dz > 0.002) {
+        updates.set(obj.id, next)
+      }
+    }
+
+    if (updates.size === 0) return
+
+    setSceneGraph((prev) => ({
+      ...prev,
+      objects: prev.objects.map((obj) => {
+        const next = updates.get(obj.id)
+        return next ? { ...obj, position: next } : obj
+      }),
+    }))
   })
 
   return (
@@ -174,7 +244,7 @@ export default function SceneObjects() {
                 <boxGeometry args={[w, h, d]} />
                 <meshStandardMaterial color={isCollisionTarget ? '#dc2626' : color} roughness={0.75} metalness={0} />
               </mesh>
-              <CollisionHaloBox w={w} h={h} d={d} active={Boolean(isCollisionTarget)} flashMs={flashMs} />
+              <CollisionHaloBox w={w} h={h} d={d} active={Boolean(isCollisionTarget)} />
               <CuboidCollider args={[w / 2, h / 2, d / 2]} />
             </RigidBody>
           )
@@ -199,7 +269,7 @@ export default function SceneObjects() {
                 <boxGeometry args={[w, h, d]} />
                 <meshStandardMaterial color={isCollisionTarget ? '#dc2626' : color} roughness={0.6} metalness={0.05} />
               </mesh>
-              <CollisionHaloBox w={w} h={h} d={d} active={Boolean(isCollisionTarget)} flashMs={flashMs} />
+              <CollisionHaloBox w={w} h={h} d={d} active={Boolean(isCollisionTarget)} />
               <CuboidCollider args={[w / 2, h / 2, d / 2]} restitution={0.1} friction={0.7} />
             </RigidBody>
           )
@@ -224,7 +294,7 @@ export default function SceneObjects() {
                 <cylinderGeometry args={[w / 2, w / 2, h, 16]} />
                 <meshStandardMaterial color={isCollisionTarget ? '#dc2626' : color} roughness={0.5} metalness={0.1} />
               </mesh>
-              <CollisionHaloCylinder r={w / 2} h={h} active={Boolean(isCollisionTarget)} flashMs={flashMs} />
+              <CollisionHaloCylinder r={w / 2} h={h} active={Boolean(isCollisionTarget)} />
               <CylinderCollider args={[h / 2, w / 2]} restitution={0.05} friction={0.7} />
             </RigidBody>
           )

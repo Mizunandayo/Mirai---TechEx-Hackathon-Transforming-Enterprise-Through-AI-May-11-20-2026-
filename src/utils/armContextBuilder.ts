@@ -2,6 +2,7 @@
 
 import { ArmSegment, GripperConfig } from '../types/arm';
 import { AIPlanRequest } from '../types/ai';
+import type { SceneGraph } from '../types/task';
 
 const GRIPPER_TYPE_MAP: Record<GripperConfig['type'], AIPlanRequest['armContext']['gripper']['type']> = {
   parallel_jaw: 'parallel',
@@ -44,12 +45,30 @@ export function buildArmContext(
 
 
 
-export function getSceneObjectNames(_scene: unknown): string[] {
+export function getSceneObjectNames(scene: unknown): string[] {
   /**
    * Extract list of named objects in scene.
    * Used as context for Gemini (e.g., "red_box", "shelf", "work_table").
    */
-  return ['work_table', 'red_box', 'green_box', 'shelf', 'bin'];
+  const sg = scene as SceneGraph | null
+  if (sg && Array.isArray(sg.objects)) {
+    const objectLines = sg.objects.map((obj) => {
+      const [x, y, z] = obj.position
+      const [w, h, d] = obj.dimensions
+      return `${obj.name} (${obj.id}) type=${obj.type} pos=(${x.toFixed(3)},${y.toFixed(3)},${z.toFixed(3)}) size=(${w.toFixed(3)},${h.toFixed(3)},${d.toFixed(3)})`
+    })
+
+    const zoneLines = Array.isArray(sg.targetZones)
+      ? sg.targetZones.map((zone) => {
+          const [x, y, z] = zone.position
+          return `${zone.name} (${zone.id}) zone pos=(${x.toFixed(3)},${y.toFixed(3)},${z.toFixed(3)}) radius=${zone.radius.toFixed(3)}`
+        })
+      : []
+
+    return [...objectLines, ...zoneLines]
+  }
+
+  return ['Work Table', 'Box A', 'Box B', 'Cylinder A', 'Shelf', 'Drawer Zone'];
 }
 
 export function buildAllowedVerbs(): string[] {

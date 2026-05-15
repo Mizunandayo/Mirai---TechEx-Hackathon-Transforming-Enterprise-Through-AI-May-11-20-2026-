@@ -1,5 +1,5 @@
 import { atom } from 'jotai'
-import type { ReActStep, ConfidenceScore, VoiceState, AIPreflightReport } from '../types/ai'
+import type { ReActStep, ConfidenceScore, VoiceState, AIPreflightReport, ExecutionGateState } from '../types/ai'
 import type { TaskSpec } from '../types/task'
 
 export const reactStepsAtom = atom<ReActStep[]>([])
@@ -24,3 +24,9 @@ export const voiceStateAtom = atom<VoiceState>({
 export const aiTextInputAtom = atom('')
 
 export const streamAbortControllerAtom = atom<AbortController | null>(null)
+
+export const executionGateAtom = atom<ExecutionGateState>({
+  phase: 'idle',
+  message: 'No verification has run yet.',
+  updatedAt: 0,
+})

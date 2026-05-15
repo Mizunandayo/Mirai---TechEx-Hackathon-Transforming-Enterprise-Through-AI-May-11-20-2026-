@@ -1,5 +1,63 @@
 # Mirai — Session Context
-**Last updated:** Thursday, May 14, 2026 — Days 1–4 complete. Day 4 (Physics Simulation) finalized with arm-link collision detection, segment rigid-body rigging, joint constraints, and collision flash polish.
+**Last updated:** Friday, May 15, 2026 — Day 5 AI integration in progress; TaskEditor is now the primary AI workflow surface.
+
+---
+
+## Session Backup — May 15, 2026 (AI TaskEditor Consolidation)
+
+### Implemented in this session
+- AI workflow consolidated into **Tasks → TaskEditorPanel**.
+- AI Results container now includes:
+	- Confidence, Safety, Reachability
+	- Target Pickability analysis against current arm/gripper/scene
+	- `AI Fix`, `AI Suggestions`, `Think Trace`, and `Auto-config Arm` actions
+- ReAct reasoning trace is viewable directly inside TaskEditor AI Results.
+- Empty-plan guard prevents replacing graph with Start/End-only outputs.
+- Scene grounding upgraded: simulation object transforms are synced back to shared `sceneGraphAtom` so TaskEditor AI calls use near-realtime positions.
+- Backend schema alias mapping updated to remove repeated Pydantic unsupported-alias warnings at runtime.
+- `/ai/repair` hardened: partial Gemini responses are normalized/merged with fallback task metadata (`taskName`, `taskDescription`, `confidenceScore`) to avoid 500 crashes.
+- `/ai/plan` now supports bounded deterministic repair loops using validator failures (reach/collision/precondition) before returning final TaskSpec.
+- Collision-risk checks are now surfaced as deterministic preflight errors (not warnings) and shown in TaskEditor AI Results.
+- Strict pickup semantic enforcement added: pre-close move targets must remain bound to one pickup object name; mismatches are auto-corrected.
+- Server-grounded `/ai/suggest` endpoint added and wired from TaskEditor (Gemini + deterministic suggestion merge).
+- Startup automation added in backend: auto-resolve port 8000 conflicts and run live self-tests for `/ai/plan`, `/ai/repair`, and `/ai/suggest`.
+- Fully autonomous Generate Motion handoff added: after plan/fix, app switches to Simulate and auto-starts playback.
+- TaskFlowCanvas blank-state race fixed: AI-generated flows are now normalized and acknowledged (`mirai:taskflow-loaded`) before navigation.
+- TaskFlowCanvas self-heal added: empty/corrupted flow state now auto-recovers to Start node.
+- TaskEditor now performs iterative collision-repair loops using compile checks before simulation handoff; auto-navigation is cancelled if collision-free state is not achieved.
+- Backend safety contract tightened: `/ai/plan` now fails closed when blocking preflight errors remain after iterative repair.
+- `/ai/repair` now returns preflight status with repaired task, enabling frontend closed-loop repair decisions.
+- New execution gate added before simulation handoff: task must compile, be collision-safe, reference existing scene targets, and demonstrate successful pickup when pickable objects exist in viewport scene state.
+- AI Results now includes animated pre-simulation verification status (Idle/Verifying/Ready/Blocked) with blocking reason details.
+- Added App-level hard guard in auto-run listener: simulation navigation/autoplay is ignored unless shared execution gate state is `ready`.
+- Added TaskEditor `Gate Debug` panel with operator diagnostics: compile pass/fail, collision frame count, pickup required/present/succeeded, missing target IDs, blocked reasons.
+- Added initial E2E regression skeleton at `e2e/autonomy-regression.spec.ts` for both success-path and blocked-path autonomy flows.
+- Fixed generation dead-end regression: AI taskflow now canonicalizes target names to scene IDs before compile and gate checks.
+- Added deterministic fallback planner when AI + repair loops fail, so pick/place prompts can still proceed with a safe synthesized plan.
+- Improved AI Results empty-state UX: blocked runs now show verification state and Gate Debug diagnostics instead of a blank result card.
+- Fixed fallback-repair schema mismatch that produced 422 errors: fallback steps now include backend-required `stepId` and `targetName` fields plus explicit move coordinates.
+- Hardened repair loop with fail-soft behavior: `/ai/repair` request errors now become structured gate failures, preserving UI responsiveness and diagnostics.
+- Updated simulation collision default to pause-on-collision (no automatic rewind jump), so manual/AI tasks stop at impact rather than snapping to earlier frames.
+- Fixed additional rewind-to-start regression in Simulation tab: PlaybackControls no longer recompiles plans from live scene-sync updates while playback is active; a frozen scene snapshot is used for stable execution.
+- Added deterministic frame-0 reset behavior: on playback reset/start, dynamic objects are restored to baseline positions captured at compile time (both rigid bodies and shared sceneGraph state).
+- Strengthened reset fidelity to full object state: baseline now includes pose, and frame-0 enforcement reapplies position + upright rotation + zero linear/angular velocity so cylinders return standing.
+
+### Recommended Next Steps (Captured for Continuity)
+- Add simulation-side guard: reject auto-run event unless execution gate is `ready` from latest validated plan.
+- Add Gate Debug mini-panel in TaskEditor AI Results with explicit check outcomes (target existence, pickup result, collision frame count).
+- Add deterministic backend tests for fail-closed behavior in `/ai/plan` and iterative repair expectations in `/ai/repair`.
+- Add E2E UI tests (prompt -> load acknowledgment -> gate ready -> simulation autoplay) to prevent regression of race conditions.
+- Migrate deprecated Gemini Python SDK path (`google.generativeai`) to `google.genai`.
+- Begin Day 6 bridge: MuJoCo validation artifact and TaskEditor surfacing of Rapier-vs-MuJoCo divergence.
+
+### Engineering notes
+- Auto-config keeps segment changes bounded (`0.05m–0.8m`) and supports adding one extra segment (up to max segment limit) when required for reach.
+- Auto-config also tunes gripper profile (type/width/force) for target pickability constraints.
+- AI prompt scene context now includes object identifiers, positions, dimensions, and zone metadata, rather than static object names.
+
+### Known follow-ups
+- Optional: expose before/after reach telemetry in AI Results (`old reach -> new reach`).
+- Optional: migrate off deprecated `google.generativeai` package to `google.genai` for long-term SDK stability.
 
 ---
 
@@ -106,10 +164,12 @@
 ✅ Revolute/prismatic joint constraints in Rapier
 ✅ Collision highlight flash polish
 
-### Day 5 — Gemini AI Integration (Not Started)
-❌ `/ai/plan` + `/ai/repair` endpoints
-❌ Grounded TaskSpec generation + deterministic repair loop
-❌ Voice input + ReAct Think/Act/Observe panel + pre-flight safety + confidence badge
+### Day 5 — Gemini AI Integration (In Progress)
+✅ `/ai/plan` + `/ai/repair` endpoints running with deterministic validation/repair guards
+✅ Grounded TaskSpec generation + deterministic repair loop
+✅ TaskEditor AI surface includes voice input, ReAct stream, pre-flight safety, confidence, pickability
+✅ `/ai/suggest` backend endpoint shipped and integrated (server-grounded suggestions)
+❌ MuJoCo cross-validation feed into TaskEditor AI results
 
 ### Day 6 — Backend + MuJoCo + Export (Not Started)
 ❌ Railway deployment + MuJoCo WS pipeline + accuracy badge
@@ -185,7 +245,7 @@
 | `src/components/simulation/JointHUD.tsx` | ✅ Live joint state + compact redesigned layout |
 | `src/components/simulation/PhysicsMetrics.tsx` | ✅ Per-joint metrics + collision/grip-empty alerts + redesigned layout |
 | `src/components/simulation/SimulationPanel.tsx` | ✅ Simulation sidebar composition (redesigned child layout) |
-| `server/main.py` | ✅ FastAPI skeleton + health check (no AI endpoints yet — Day 5) |
+| `server/main.py` | ✅ FastAPI AI endpoints live (`/ai/plan`, `/ai/repair`, `/ai/suggest`) + startup auto-port cleanup + self-test runner |
 | `convert_blueprint.py` | Can be deleted |
 | `MIRAI_BLUEPRINT.html` | Can be deleted |
 

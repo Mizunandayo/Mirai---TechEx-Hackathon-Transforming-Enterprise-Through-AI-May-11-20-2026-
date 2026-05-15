@@ -15,8 +15,7 @@ class ArmSegmentConfig(BaseModel):
     mass: float
     joint_limits: Dict[str, float] = Field(
         default_factory=lambda: {"min": -180, "max": 180},
-        validation_alias="jointLimits",
-        serialization_alias="jointLimits",
+        alias="jointLimits",
     )
 
 
@@ -27,8 +26,7 @@ class GripperConfig(BaseModel):
     type: Literal["parallel", "suction", "magnetic"]
     force_range: Dict[str, float] = Field(
         default_factory=lambda: {"min": 0, "max": 100},
-        validation_alias="forceRange",
-        serialization_alias="forceRange",
+        alias="forceRange",
     )
 
 
@@ -38,20 +36,20 @@ class ArmContextDTO(BaseModel):
 
     segments: List[ArmSegmentConfig]
     gripper: GripperConfig
-    max_reach: float = Field(..., validation_alias="maxReach", serialization_alias="maxReach")
-    payload_limit: float = Field(..., validation_alias="payloadLimit", serialization_alias="payloadLimit")
-    joint_count: int = Field(default=0, validation_alias="jointCount", serialization_alias="jointCount")
+    max_reach: float = Field(..., alias="maxReach")
+    payload_limit: float = Field(..., alias="payloadLimit")
+    joint_count: int = Field(default=0, alias="jointCount")
 
 
 class TaskStep(BaseModel):
     """Single step in a task."""
     model_config = ConfigDict(populate_by_name=True)
 
-    step_id: int = Field(..., validation_alias="stepId", serialization_alias="stepId")
+    step_id: int = Field(..., alias="stepId")
     type: Literal["move", "grip", "wait", "loop", "if"]
     
     # Move step fields
-    target_name: Optional[str] = Field(default=None, validation_alias="targetName", serialization_alias="targetName")
+    target_name: Optional[str] = Field(default=None, alias="targetName")
     x: Optional[float] = None
     y: Optional[float] = None
     z: Optional[float] = None
@@ -63,7 +61,7 @@ class TaskStep(BaseModel):
     force: Optional[float] = None
     
     # Wait step fields
-    duration_ms: Optional[int] = Field(default=None, validation_alias="durationMs", serialization_alias="durationMs")
+    duration_ms: Optional[int] = Field(default=None, alias="durationMs")
     
     # Validation
     @field_validator("speed")
@@ -79,16 +77,10 @@ class TaskSpecRequest(BaseModel):
     """Request from frontend to generate a task from natural language."""
     model_config = ConfigDict(populate_by_name=True)
 
-    user_input: str = Field(
-        ...,
-        min_length=5,
-        max_length=500,
-        validation_alias="userInput",
-        serialization_alias="userInput",
-    )
-    arm_context: ArmContextDTO = Field(..., validation_alias="armContext", serialization_alias="armContext")
-    scene_objects: List[str] = Field(..., validation_alias="sceneObjects", serialization_alias="sceneObjects")
-    allowed_verbs: List[str] = Field(..., validation_alias="allowedVerbs", serialization_alias="allowedVerbs")
+    user_input: str = Field(..., min_length=5, max_length=500)
+    arm_context: ArmContextDTO
+    scene_objects: List[str]
+    allowed_verbs: List[str]
 
 
 
@@ -103,15 +95,14 @@ class TaskSpec(BaseModel):
     """Complete task specification returned by Gemini."""
     model_config = ConfigDict(populate_by_name=True)
 
-    task_name: str = Field(..., validation_alias="taskName", serialization_alias="taskName")
-    task_description: str = Field(..., validation_alias="taskDescription", serialization_alias="taskDescription")
+    task_name: str = Field(..., alias="taskName")
+    task_description: str = Field(..., alias="taskDescription")
     steps: List[TaskStep]
     confidence_score: float = Field(
         ...,
         ge=0.0,
         le=1.0,
-        validation_alias="confidenceScore",
-        serialization_alias="confidenceScore",
+        alias="confidenceScore",
     )
     warnings: List[str] = Field(default_factory=list)
 
@@ -121,7 +112,7 @@ class ValidationError(BaseModel):
     """Pre-flight validation failure."""
     step_index: int
     step_type: str
-    error_code: Literal["reach_violation", "payload_violation", "collision_risk", "precondition_unmet"]
+    error_code: Literal["reach_violation", "payload_violation", "collision_risk", "precondition_unmet", "object_consistency"]
     message: str
     suggested_fix: Optional[str] = None
 
@@ -140,6 +131,23 @@ class RepairRequest(BaseModel):
     """Request to fix failing task."""
     model_config = ConfigDict(populate_by_name=True)
 
-    task_spec: TaskSpec = Field(..., validation_alias="taskSpec", serialization_alias="taskSpec")
+    task_spec: TaskSpec
     failures: List[ValidationError]
-    arm_context: ArmContextDTO = Field(..., validation_alias="armContext", serialization_alias="armContext")
+    arm_context: ArmContextDTO
+
+
+class SuggestRequest(BaseModel):
+    """Request for server-grounded motion suggestions."""
+    model_config = ConfigDict(populate_by_name=True)
+
+    user_input: str = Field(..., min_length=5, max_length=500)
+    arm_context: ArmContextDTO
+    scene_objects: List[str] = Field(default_factory=list)
+    task_spec: Optional[TaskSpec] = None
+    preflight: Optional[PreFlightReport] = None
+
+
+class SuggestResponse(BaseModel):
+    """Structured suggestions from backend Gemini + deterministic checks."""
+    suggestions: List[str] = Field(default_factory=list)
+    source: Literal["gemini", "deterministic", "hybrid"] = "hybrid"

@@ -86,10 +86,45 @@
 ✅ Collision highlighting applied to both arm segments AND environment objects simultaneously
 ✅ Object positioning adjusted to minimize gap between objects and work table surface
 
-### Day 5 — Gemini AI Integration (Not Started)
-❌ `/ai/plan` + `/ai/repair` endpoints
-❌ Grounded TaskSpec generation + deterministic repair loop
-❌ Voice input + ReAct Think/Act/Observe panel + pre-flight safety + confidence badge
+### Day 5 — Gemini AI Integration (In Progress)
+✅ TaskEditorPanel is now the canonical AI interaction surface (AI navbar flow deprecated)
+✅ AI Results in TaskEditor shows confidence, safety, reachability, and target pickability
+✅ TaskEditor AI actions shipped: `AI Fix`, `AI Suggestions`, `Think Trace`, `Auto-config Arm`
+✅ ReAct trace available inline in TaskEditor AI Results
+✅ Scene grounding upgraded to include object metadata (name/id/type/position/dimensions/zone)
+✅ Simulation object transforms synced into shared scene state for AI context freshness
+✅ Backend task JSON normalization prevents partial-model repair crashes
+✅ Collision-risk validation integrated as deterministic preflight error + auto-repair feedback loop
+✅ Backend `/ai/suggest` endpoint implemented with server-side Gemini grounding
+✅ Strict pre-close pickup target consistency check + automatic target-name correction
+✅ Autonomous startup safety: auto-resolve port 8000 conflicts + live endpoint self-test flow
+✅ Autonomous handoff: Generate Motion now routes directly to Simulate and auto-plays compiled plan
+✅ TaskFlow load handshake added: Tasks canvas confirms AI node load before simulation auto-switch
+✅ Iterative collision-repair loop added (compile-check + repair) prior to simulation handoff
+✅ Safety fail-closed mode: backend no longer emits executable task when blocking errors persist
+✅ Pre-simulation gate now requires valid scene targets and successful pickup execution before autonomous Simulate handoff
+✅ AI Results panel now displays animated verification lifecycle (Idle/Verifying/Ready/Blocked) for deterministic handoff transparency
+✅ App-level auto-run listener now hard-enforces execution-gate readiness before simulation handoff
+✅ Gate Debug diagnostics panel added to TaskEditor AI Results for transparent pass/fail reasoning
+✅ E2E autonomy regression skeleton added (`e2e/autonomy-regression.spec.ts`)
+✅ Target canonicalization layer added: Gemini target names are normalized to scene IDs before compile/verification
+✅ Deterministic fallback pick/place synthesis added for AI-repair exhaustion scenarios
+✅ AI Results blocked-state UX hardened: verification + diagnostics remain visible even when TaskSpec generation fails
+✅ Fallback planner payload aligned with backend repair schema to prevent 422 contract errors
+✅ Frontend repair-loop error handling hardened (fail-soft with diagnostic surfacing)
+✅ Collision default updated to pause-on-impact without automatic rewind-to-start behavior
+✅ Simulation playback compile path hardened: live scene-sync updates no longer trigger mid-run recompile/reset while transport is active
+✅ Playback reset now restores simulation objects to compile-time baseline positions when returning to frame 0
+✅ Frame-0 reset now restores full object state (pose + velocity reset), ensuring cylinders and dynamic bodies return to original standing state
+❌ MuJoCo-backed validation merged into TaskEditor AI result pipeline (pending Day 6)
+
+### Recommended Next Implementation Wave
+- Add final simulation listener guard to block autoplay when execution verification is not `ready`
+- Add TaskEditor `Gate Debug` diagnostics strip for operator-grade transparency
+- Add E2E regression suite for autonomous Generate Motion handoff path
+- Add backend contract tests for fail-closed and iterative repair invariants
+- Migrate backend Gemini integration from deprecated `google.generativeai` to `google.genai`
+- Implement Day 6 MuJoCo validation feed and divergence badge in AI Results
 
 ### Day 6 — Backend + MuJoCo + Export (Not Started)
 ❌ Railway deployment + MuJoCo WS pipeline + accuracy badge

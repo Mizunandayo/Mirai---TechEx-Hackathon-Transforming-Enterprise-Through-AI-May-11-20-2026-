@@ -4,7 +4,7 @@ import { RigidBody, BallCollider, type RigidBodyApi } from '@react-three/rapier'
 import { useAtomValue } from 'jotai'
 import { PointLight } from 'three'
 import { armSegmentsAtom, armGripperAtom } from '../../store/atoms'
-import { currentSimFrameAtom, collisionFlashMsAtom } from '../../store/simAtoms'
+import { currentSimFrameAtom } from '../../store/simAtoms'
 import type { ArmSegment, GripperConfig } from '../../types/arm'
 import ArmPhysicsRig from './ArmPhysicsRig'
 
@@ -320,7 +320,6 @@ export default function SimulatedArm({
   const segments = useAtomValue(armSegmentsAtom)
   const gripper = useAtomValue(armGripperAtom)
   const frame = useAtomValue(currentSimFrameAtom)
-  const flashMs = useAtomValue(collisionFlashMsAtom)
 
   const pitchAngles = poseOverride?.pitchAngles ?? frame?.pitchAngles ?? []
   const waistYawDeg = poseOverride?.waistYawDeg ?? frame?.waistYawDeg ?? 0

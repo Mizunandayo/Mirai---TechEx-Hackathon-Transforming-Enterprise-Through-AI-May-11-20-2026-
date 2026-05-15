@@ -1,9 +1,9 @@
 {
   "spec": {
-    "id": "task-1778740636447",
+    "id": "task-1778829077845",
     "name": "Miraitassssk",
     "version": "1.0",
-    "createdAt": "2026-05-14T06:37:16.447Z",
+    "createdAt": "2026-05-15T07:11:17.845Z",
     "description": "",
     "sceneId": "default",
     "blocks": [
@@ -16,9 +16,9 @@
         "label": "Move To",
         "params": {
           "targetId": null,
-          "x": -0.17,
-          "y": 0.107,
-          "z": 0.269,
+          "x": -0.166,
+          "y": 0.092,
+          "z": 0.212,
           "speed": 0.5,
           "approach": "side"
         }
@@ -43,8 +43,8 @@
         "kind": "move",
         "label": "Move To",
         "params": {
-          "targetId": "",
-          "x": 0.15,
+          "targetId": null,
+          "x": -0.145,
           "y": 0.4,
           "z": 0,
           "speed": 0.5,
@@ -182,7 +182,7 @@
         "selectable": true,
         "measured": {
           "width": 228,
-          "height": 41
+          "height": 40
         },
         "selected": false,
         "dragging": false
@@ -199,16 +199,16 @@
           "label": "Move To",
           "params": {
             "targetId": null,
-            "x": -0.17,
-            "y": 0.107,
-            "z": 0.269,
+            "x": -0.166,
+            "y": 0.092,
+            "z": 0.212,
             "speed": 0.5,
             "approach": "side"
           }
         },
         "measured": {
           "width": 264,
-          "height": 201
+          "height": 200
         },
         "selected": false,
         "dragging": false
@@ -229,8 +229,8 @@
           }
         },
         "measured": {
-          "width": 255,
-          "height": 111
+          "width": 254,
+          "height": 109
         },
         "selected": false,
         "dragging": false
@@ -251,8 +251,8 @@
           }
         },
         "measured": {
-          "width": 255,
-          "height": 111
+          "width": 254,
+          "height": 109
         },
         "selected": false,
         "dragging": false
@@ -268,8 +268,8 @@
           "kind": "move",
           "label": "Move To",
           "params": {
-            "targetId": "",
-            "x": 0.15,
+            "targetId": null,
+            "x": -0.145,
             "y": 0.4,
             "z": 0,
             "speed": 0.5,
@@ -278,7 +278,7 @@
         },
         "measured": {
           "width": 264,
-          "height": 201
+          "height": 200
         },
         "selected": false,
         "dragging": false
@@ -304,7 +304,7 @@
         },
         "measured": {
           "width": 264,
-          "height": 201
+          "height": 200
         },
         "selected": false,
         "dragging": false
@@ -325,8 +325,8 @@
           }
         },
         "measured": {
-          "width": 255,
-          "height": 111
+          "width": 254,
+          "height": 109
         },
         "selected": false,
         "dragging": false
@@ -344,7 +344,7 @@
         },
         "measured": {
           "width": 228,
-          "height": 41
+          "height": 40
         },
         "selected": false,
         "dragging": false
@@ -370,7 +370,7 @@
         },
         "measured": {
           "width": 264,
-          "height": 201
+          "height": 200
         },
         "selected": false,
         "dragging": false
@@ -396,7 +396,7 @@
         },
         "measured": {
           "width": 264,
-          "height": 201
+          "height": 200
         },
         "selected": false,
         "dragging": false
@@ -417,8 +417,8 @@
           }
         },
         "measured": {
-          "width": 255,
-          "height": 111
+          "width": 254,
+          "height": 109
         },
         "selected": false,
         "dragging": false
@@ -444,7 +444,7 @@
         },
         "measured": {
           "width": 264,
-          "height": 201
+          "height": 200
         },
         "selected": false,
         "dragging": false
@@ -465,8 +465,8 @@
           }
         },
         "measured": {
-          "width": 255,
-          "height": 111
+          "width": 254,
+          "height": 109
         },
         "selected": false,
         "dragging": false
@@ -492,7 +492,7 @@
         },
         "measured": {
           "width": 264,
-          "height": 201
+          "height": 200
         },
         "selected": false,
         "dragging": false
@@ -518,7 +518,7 @@
         },
         "measured": {
           "width": 264,
-          "height": 201
+          "height": 200
         },
         "selected": false,
         "dragging": false
@@ -544,7 +544,7 @@
         },
         "measured": {
           "width": 264,
-          "height": 201
+          "height": 200
         },
         "selected": false,
         "dragging": false

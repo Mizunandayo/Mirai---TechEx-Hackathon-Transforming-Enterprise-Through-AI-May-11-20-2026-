@@ -1,4 +1,4 @@
-import { useAtom, useAtomValue } from 'jotai'
+import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   taskNameAtom,
@@ -6,6 +6,7 @@ import {
   taskValidationAtom,
   taskNodesAtom,
   taskEdgesAtom,
+  sceneGraphAtom,
 } from '../../store/taskAtoms'
 import { exportTaskJson, loadTaskFromFile } from '../../utils/taskExport'
 
@@ -13,19 +14,233 @@ import { armSegmentsAtom, armGripperAtom } from '../../store/atoms'
 import {
   aiLoadingAtom,
   confidenceScoreAtom,
+  executionGateAtom,
   generatedTaskSpecAtom,
   preflightReportAtom,
   reactStepsAtom,
 } from '../../store/aiAtoms'
-import { repairTask, streamTaskPlan } from '../../utils/geminiClient'
+import { getMotionSuggestions, repairTask, streamTaskPlan } from '../../utils/geminiClient'
 import { buildArmContext, getSceneObjectNames, buildAllowedVerbs } from '../../utils/armContextBuilder'
 import { buildFlowFromAITask } from '../../utils/taskFromAI'
+import { compileTask } from '../../utils/motionCompiler'
 import NodePalette from './NodePalette'
 import { useVoiceToText } from '../../hooks/useVoiceToText'
-import type { ArmSegment } from '../../types/arm'
+import ReActPanel from '../ai-integration/ReActPanel'
+import type { ArmSegment, GripperConfig } from '../../types/arm'
+import type { SceneGraph, SceneObject, TaskBlock } from '../../types/task'
+import type { Node } from '@xyflow/react'
 
 const SEGMENT_MIN_LENGTH = 0.05
 const SEGMENT_MAX_LENGTH = 0.8
+const MAX_SEGMENTS = 7
+const MAX_COLLISION_REPAIR_LOOPS = 4
+
+type PickabilityReport = {
+  object: SceneObject | null
+  isPickable: boolean
+  reachOk: boolean
+  toolOk: boolean
+  reason: string
+  estimatedMassKg: number
+  requiredGripSpanM: number
+  requiredGripForceN: number
+  targetDistanceM: number
+}
+
+type PreSimulationStatus = {
+  phase: 'idle' | 'verifying' | 'ready' | 'blocked'
+  message: string
+}
+
+type ExecutionReadinessReport = {
+  missingTargetIds: string[]
+  pickupRequired: boolean
+  hasGripClose: boolean
+  pickupSucceeded: boolean
+  pickupObjectId: string | null
+  blockedFailures: Array<{
+    step_index: number
+    step_type: string
+    error_code: 'precondition_unmet' | 'object_consistency'
+    message: string
+    suggested_fix: string
+  }>
+}
+
+type GateDebugSnapshot = {
+  compileOk: boolean
+  collisionFrames: number
+  missingTargetIds: string[]
+  pickupRequired: boolean
+  hasGripClose: boolean
+  pickupSucceeded: boolean
+  pickupObjectId: string | null
+  blockedReasons: string[]
+  attempt: number
+}
+
+function normalizeLookupToken(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
+function resolveSceneTargetId(rawTarget: string | null | undefined, sceneGraph: SceneGraph): string | null {
+  if (!rawTarget) return null
+  const raw = String(rawTarget).trim()
+  if (!raw) return null
+
+  const byExactId = sceneGraph.objects.find((object) => object.id === raw)
+    ?? sceneGraph.targetZones.find((zone) => zone.id === raw)
+  if (byExactId) return byExactId.id
+
+  const wanted = normalizeLookupToken(raw)
+  const namespaced = [
+    ...sceneGraph.objects.map((object) => ({ id: object.id, tokens: [object.id, object.name] })),
+    ...sceneGraph.targetZones.map((zone) => ({ id: zone.id, tokens: [zone.id, zone.name] })),
+  ]
+
+  for (const candidate of namespaced) {
+    const matched = candidate.tokens.some((token) => normalizeLookupToken(token) === wanted)
+    if (matched) return candidate.id
+  }
+
+  for (const candidate of namespaced) {
+    const matched = candidate.tokens.some((token) => normalizeLookupToken(token).includes(wanted) || wanted.includes(normalizeLookupToken(token)))
+    if (matched) return candidate.id
+  }
+
+  return null
+}
+
+function normalizeFlowTargetIds(
+  flow: { nodes: Node<TaskBlock>[]; edges: any[] },
+  sceneGraph: SceneGraph,
+): { nodes: Node<TaskBlock>[]; edges: any[] } {
+  const nodes = flow.nodes.map((node) => {
+    if (node.data.kind !== 'move') return node
+    const targetId = (node.data as any)?.params?.targetId
+    if (typeof targetId !== 'string' || !targetId.trim()) return node
+
+    const resolvedId = resolveSceneTargetId(targetId, sceneGraph)
+    if (!resolvedId || resolvedId === targetId) return node
+
+    return {
+      ...node,
+      data: {
+        ...(node.data as any),
+        params: {
+          ...((node.data as any)?.params || {}),
+          targetId: resolvedId,
+        },
+      } as TaskBlock,
+    }
+  })
+
+  return { nodes, edges: flow.edges }
+}
+
+function selectDestinationTargetId(input: string, pickupObjectId: string, sceneGraph: SceneGraph): string | null {
+  const normalized = input.toLowerCase()
+  const prefer = (keywords: string[]) => {
+    const hit = sceneGraph.targetZones.find((zone) => keywords.some((keyword) => zone.name.toLowerCase().includes(keyword) || zone.id.toLowerCase().includes(keyword)))
+      ?? sceneGraph.objects.find((object) => object.type !== 'box' && object.type !== 'cylinder' && object.type !== 'sphere' && keywords.some((keyword) => object.name.toLowerCase().includes(keyword) || object.id.toLowerCase().includes(keyword)))
+    return hit?.id ?? null
+  }
+
+  if (normalized.includes('shelf')) {
+    const shelfTarget = prefer(['shelf'])
+    if (shelfTarget) return shelfTarget
+  }
+  if (normalized.includes('drawer')) {
+    const drawerTarget = prefer(['drawer'])
+    if (drawerTarget) return drawerTarget
+  }
+  if (normalized.includes('table') || normalized.includes('center')) {
+    const tableTarget = prefer(['table', 'center'])
+    if (tableTarget) return tableTarget
+  }
+
+  return sceneGraph.targetZones[0]?.id
+    ?? sceneGraph.objects.find((object) => object.id !== pickupObjectId && (object.type === 'surface' || object.type === 'zone'))?.id
+    ?? null
+}
+
+function buildDeterministicFallbackTask(
+  input: string,
+  sceneGraph: SceneGraph,
+  gripper: GripperConfig,
+): any | null {
+  const pickup = findReferencedObject(input, sceneGraph.objects)
+  if (!pickup) return null
+
+  const destinationId = selectDestinationTargetId(input, pickup.id, sceneGraph)
+  if (!destinationId) return null
+
+  const destinationObject = sceneGraph.objects.find((object) => object.id === destinationId) ?? null
+  const destinationZone = sceneGraph.targetZones.find((zone) => zone.id === destinationId) ?? null
+  const destinationPos: [number, number, number] = destinationObject
+    ? [
+        destinationObject.position[0],
+        destinationObject.position[1] + Math.max(0.08, destinationObject.dimensions[1] * 0.5),
+        destinationObject.position[2],
+      ]
+    : destinationZone
+      ? [...destinationZone.position]
+      : [pickup.position[0], pickup.position[1] + 0.18, pickup.position[2]]
+
+  const liftY = Number((pickup.position[1] + Math.max(0.16, pickup.dimensions[1] + 0.08)).toFixed(3))
+  const approachY = Number((pickup.position[1] + Math.max(0.08, pickup.dimensions[1] * 0.5 + 0.03)).toFixed(3))
+
+  return {
+    task_name: `Fallback · ${input.slice(0, 52)}`,
+    task_description: 'Deterministic fallback plan generated after AI repair exhaustion.',
+    confidence_score: 0.58,
+    warnings: ['Fallback planner used deterministic pick-and-place synthesis.'],
+    steps: [
+      {
+        stepId: 1,
+        type: 'move',
+        targetName: pickup.id,
+        x: pickup.position[0],
+        y: approachY,
+        z: pickup.position[2],
+        speed: 0.3,
+        approach: 'above',
+      },
+      {
+        stepId: 2,
+        type: 'move',
+        targetName: pickup.id,
+        x: pickup.position[0],
+        y: liftY,
+        z: pickup.position[2],
+        speed: 0.25,
+        approach: 'above',
+      },
+      {
+        stepId: 3,
+        type: 'grip',
+        action: 'close',
+        force: Math.max(42, Math.min(95, gripper.force || 60)),
+      },
+      {
+        stepId: 4,
+        type: 'move',
+        targetName: destinationId,
+        x: destinationPos[0],
+        y: destinationPos[1],
+        z: destinationPos[2],
+        speed: 0.22,
+        approach: 'above',
+      },
+      {
+        stepId: 5,
+        type: 'grip',
+        action: 'open',
+        force: 0,
+      },
+    ],
+  }
+}
 
 function parseReachDistance(message: string): { distance: number; maxReach: number } | null {
   const match = message.match(/is\s+([\d.]+)m away, but max reach is\s+([\d.]+)m/i)
@@ -102,10 +317,135 @@ function autoConfigureArmForReach(
   return { updated, changed }
 }
 
+function estimateObjectMassKg(object: SceneObject): number {
+  const [w, h, d] = object.dimensions
+  const volume = Math.max(0.00001, w * h * d)
+  const density = object.type === 'cylinder' ? 420 : object.type === 'box' ? 360 : 300
+  return Math.max(0.05, Math.min(2.0, volume * density))
+}
+
+function findReferencedObject(input: string, objects: SceneObject[]): SceneObject | null {
+  const normalized = input.toLowerCase()
+  const pickableObjects = objects.filter((object) => object.type === 'box' || object.type === 'cylinder' || object.type === 'sphere')
+
+  const explicit = pickableObjects.find((object) =>
+    normalized.includes(object.name.toLowerCase()) || normalized.includes(object.id.toLowerCase()),
+  )
+  if (explicit) return explicit
+
+  const shorthand = normalized.match(/(box|cylinder|sphere)\s*([a-z])/i)
+  if (shorthand) {
+    const kind = shorthand[1].toLowerCase()
+    const suffix = shorthand[2].toLowerCase()
+    return pickableObjects.find((object) => object.id.toLowerCase().includes(`${kind}-${suffix}`)) ?? null
+  }
+
+  return pickableObjects[0] ?? null
+}
+
+function computePickability(
+  input: string,
+  objects: SceneObject[],
+  armSegments: ArmSegment[],
+  gripper: GripperConfig,
+): PickabilityReport {
+  const target = findReferencedObject(input, objects)
+  if (!target) {
+    return {
+      object: null,
+      isPickable: false,
+      reachOk: false,
+      toolOk: false,
+      reason: 'No pickable object is currently detected in the scene.',
+      estimatedMassKg: 0,
+      requiredGripSpanM: 0,
+      requiredGripForceN: 0,
+      targetDistanceM: 0,
+    }
+  }
+
+  const maxReach = armSegments.reduce((sum, segment) => sum + segment.length, 0) * 1.1
+  const [x, y, z] = target.position
+  const distance = Math.sqrt(x * x + y * y + z * z)
+  const reachOk = distance <= maxReach
+
+  const estimatedMassKg = estimateObjectMassKg(target)
+  const requiredGripForceN = estimatedMassKg * 9.81 * 1.8
+  const requiredGripSpanM = target.type === 'cylinder'
+    ? target.dimensions[0]
+    : Math.max(target.dimensions[0], target.dimensions[2])
+
+  const isMetalHint = /metal|steel|iron/i.test(`${target.name} ${target.id}`)
+  let toolOk = true
+  let toolReason = ''
+
+  if (gripper.type === 'magnetic' && !isMetalHint) {
+    toolOk = false
+    toolReason = 'Magnetic gripper is not suitable for this object material.'
+  }
+
+  if (gripper.type === 'suction_cup' && target.type === 'sphere') {
+    toolOk = false
+    toolReason = 'Suction cup is unreliable on spherical surfaces.'
+  }
+
+  if (gripper.type === 'parallel_jaw' && gripper.width + 1e-6 < requiredGripSpanM) {
+    toolOk = false
+    toolReason = `Current jaw width ${(gripper.width * 1000).toFixed(0)}mm is below required ${(requiredGripSpanM * 1000).toFixed(0)}mm.`
+  }
+
+  if (gripper.force + 1e-6 < requiredGripForceN) {
+    toolOk = false
+    toolReason = `Current grip force ${gripper.force.toFixed(0)}N is below required ${requiredGripForceN.toFixed(0)}N.`
+  }
+
+  if (reachOk && toolOk) {
+    return {
+      object: target,
+      isPickable: true,
+      reachOk,
+      toolOk,
+      reason: 'Target is reachable and gripper constraints are satisfied.',
+      estimatedMassKg,
+      requiredGripSpanM,
+      requiredGripForceN,
+      targetDistanceM: distance,
+    }
+  }
+
+  if (!reachOk && !toolOk) {
+    return {
+      object: target,
+      isPickable: false,
+      reachOk,
+      toolOk,
+      reason: `Target is out of reach and tool constraints fail. ${toolReason}`,
+      estimatedMassKg,
+      requiredGripSpanM,
+      requiredGripForceN,
+      targetDistanceM: distance,
+    }
+  }
+
+  return {
+    object: target,
+    isPickable: false,
+    reachOk,
+    toolOk,
+    reason: reachOk ? toolReason : `Target distance ${distance.toFixed(2)}m exceeds current max reach ${maxReach.toFixed(2)}m.`,
+    estimatedMassKg,
+    requiredGripSpanM,
+    requiredGripForceN,
+    targetDistanceM: distance,
+  }
+}
+
 export default function TaskEditorPanel() {
 
   const [taskName, setTaskName]         = useAtom(taskNameAtom)
   const [description, setDescription]   = useAtom(taskDescriptionAtom)
+  const setTaskNodes = useSetAtom(taskNodesAtom)
+  const setTaskEdges = useSetAtom(taskEdgesAtom)
   const validation                      = useAtomValue(taskValidationAtom)
   const nodes                           = useAtomValue(taskNodesAtom)
   const edges                           = useAtomValue(taskEdgesAtom)
@@ -114,16 +454,39 @@ export default function TaskEditorPanel() {
   const [aiInput, setAIInput] = useState('')
   const [aiError, setAIError] = useState<string | null>(null)
   const [isAILoading, setIsAILoading] = useAtom(aiLoadingAtom)
+  const setExecutionGate = useSetAtom(executionGateAtom)
   const [reactSteps, setReactSteps] = useAtom(reactStepsAtom)
   const [generatedTask, setGeneratedTask] = useAtom(generatedTaskSpecAtom)
   const [preflight, setPreflight] = useAtom(preflightReportAtom)
   const [confidence, setConfidence] = useAtom(confidenceScoreAtom)
   const [segments, setSegments] = useAtom(armSegmentsAtom)
-  const [gripper] = useAtom(armGripperAtom)
+  const [gripper, setGripper] = useAtom(armGripperAtom)
+  const sceneGraph = useAtomValue(sceneGraphAtom)
   const abortRef = useRef<AbortController | null>(null)
   const voiceSeedRef = useRef('')
   const [showAIResults, setShowAIResults] = useState(false)
   const [showAISuggestions, setShowAISuggestions] = useState(false)
+  const [showThinkTrace, setShowThinkTrace] = useState(false)
+  const [configFixNote, setConfigFixNote] = useState<string | null>(null)
+  const [aiSuggestions, setAISuggestions] = useState<string[]>([])
+  const [suggestionSource, setSuggestionSource] = useState<'gemini' | 'deterministic' | 'hybrid' | null>(null)
+  const [isSuggestionLoading, setIsSuggestionLoading] = useState(false)
+  const [preSimulationStatus, setPreSimulationStatus] = useState<PreSimulationStatus>({
+    phase: 'idle',
+    message: 'No verification has run yet.',
+  })
+  const [showGateDebug, setShowGateDebug] = useState(false)
+  const [gateDebug, setGateDebug] = useState<GateDebugSnapshot>({
+    compileOk: false,
+    collisionFrames: 0,
+    missingTargetIds: [],
+    pickupRequired: false,
+    hasGripClose: false,
+    pickupSucceeded: false,
+    pickupObjectId: null,
+    blockedReasons: [],
+    attempt: 0,
+  })
   // Voice input state
   const {
     transcript,
@@ -147,62 +510,13 @@ export default function TaskEditorPanel() {
     setAIInput(base ? `${base} ${live}` : live)
   }, [isListening, transcript])
 
-  const suggestions = useMemo(() => {
-    if (!preflight) return [] as string[]
-
-    const items: string[] = []
-    const seen = new Set<string>()
-    const push = (message: string) => {
-      if (seen.has(message)) return
-      seen.add(message)
-      items.push(message)
-    }
-
-    for (const failure of preflight.errors || []) {
-      const code = String(failure.error_code || '').toLowerCase()
-      if (code.includes('reach')) {
-        push('Move the target closer or increase arm reach by adjusting segment lengths.')
-        continue
-      }
-      if (code.includes('payload') || code.includes('weight')) {
-        push('Reduce payload, lower speed, or switch to a stronger gripper profile.')
-        continue
-      }
-      if (code.includes('collision')) {
-        push('Insert approach and retreat waypoints to avoid obstacles before grip/place.')
-        continue
-      }
-      if (code.includes('grip')) {
-        push('Ensure grip-close happens before move and grip-open happens after placement.')
-        continue
-      }
-      if (code.includes('order') || code.includes('precondition')) {
-        push('Reorder steps so preconditions are satisfied at each step.')
-        continue
-      }
-      if (failure.suggested_fix) {
-        push(String(failure.suggested_fix))
-        continue
-      }
-      push('Break this into smaller explicit steps with named target zones.')
-    }
-
-    for (const warning of preflight.warnings || []) {
-      const text = String(warning).toLowerCase()
-      if (text.includes('limit') || text.includes('near')) {
-        push('Slow down motion near joint limits to reduce torque spikes.')
-      } else if (text.includes('confidence')) {
-        push('Use shorter, explicit pick/place phrasing for higher planner confidence.')
-      } else {
-        push('Replay in simulation and inspect timeline markers before export.')
-      }
-    }
-
-    return items.slice(0, 6)
-  }, [preflight])
-
   const reachErrors = useMemo(
     () => (preflight?.errors || []).filter((error) => error.error_code === 'reach_violation'),
+    [preflight],
+  )
+
+  const collisionErrors = useMemo(
+    () => (preflight?.errors || []).filter((error) => error.error_code === 'collision_risk'),
     [preflight],
   )
 
@@ -219,11 +533,362 @@ export default function TaskEditorPanel() {
     }
   }, [preflight, reachErrors])
 
+  const pickability = useMemo(
+    () => computePickability(aiInput, sceneGraph.objects, segments, gripper),
+    [aiInput, sceneGraph.objects, segments, gripper],
+  )
+
+  const syncExecutionGate = useCallback(
+    (phase: PreSimulationStatus['phase'], message: string) => {
+      setPreSimulationStatus({ phase, message })
+      setExecutionGate({
+        phase,
+        message,
+        updatedAt: Date.now(),
+      })
+    },
+    [setExecutionGate],
+  )
+
+  useEffect(() => {
+    setExecutionGate({
+      phase: 'idle',
+      message: 'No verification has run yet.',
+      updatedAt: Date.now(),
+    })
+  }, [setExecutionGate])
+
+  const waitForTaskflowLoaded = useCallback((expectedNodeCount: number) => {
+    return new Promise<boolean>((resolve) => {
+      let finished = false
+
+      const complete = (ok: boolean) => {
+        if (finished) return
+        finished = true
+        window.removeEventListener('mirai:taskflow-loaded', onLoaded as EventListener)
+        window.clearTimeout(timer)
+        resolve(ok)
+      }
+
+      const onLoaded = (event: Event) => {
+        const detail = (event as CustomEvent).detail as { nodeCount?: number } | undefined
+        const nodeCount = Number(detail?.nodeCount ?? 0)
+        complete(nodeCount >= expectedNodeCount)
+      }
+
+      const timer = window.setTimeout(() => complete(false), 1200)
+      window.addEventListener('mirai:taskflow-loaded', onLoaded as EventListener, { once: true })
+    })
+  }, [])
+
+  const countCollisionFrames = useCallback(
+    (task: any, activeSegments: ArmSegment[]) => {
+      const rawFlow = buildFlowFromAITask(task)
+      const flow = normalizeFlowTargetIds(rawFlow, sceneGraph)
+      const title = String(task?.task_name || task?.taskName || taskName || 'AI Generated Task')
+      const compiled = compileTask(flow.nodes, flow.edges, activeSegments, sceneGraph, title)
+      const collisionCount = compiled?.frames.reduce((sum, frame) => (frame.isCollision ? sum + 1 : sum), 0) ?? 0
+      return { flow, collisionCount, compiled }
+    },
+    [sceneGraph, taskName],
+  )
+
+  const evaluateExecutionReadiness = useCallback(
+    (flowNodes: Node<TaskBlock>[], compiled: ReturnType<typeof compileTask> | null): ExecutionReadinessReport => {
+      const knownTargetIds = new Set<string>([
+        ...sceneGraph.objects.map((object) => object.id),
+        ...sceneGraph.targetZones.map((zone) => zone.id),
+      ])
+      const pickableObjectIds = new Set<string>(
+        sceneGraph.objects
+          .filter((object) => object.type !== 'surface' && object.type !== 'zone')
+          .map((object) => object.id),
+      )
+
+      const missingTargetIds = flowNodes
+        .filter((node) => node.data.kind === 'move')
+        .map((node) => {
+          const targetId = (node.data as any)?.params?.targetId
+          return typeof targetId === 'string' ? targetId.trim() : ''
+        })
+        .filter((targetId) => targetId.length > 0 && !knownTargetIds.has(targetId))
+
+      const hasGripClose = flowNodes.some((node) => {
+        if (node.data.kind !== 'grip') return false
+        return String((node.data as any)?.params?.action ?? '').toLowerCase() === 'close'
+      })
+
+      const pickupObjectId =
+        compiled?.frames.find((frame) => Boolean(frame.heldObjectId))?.heldObjectId ?? null
+      const pickupSucceeded = Boolean(pickupObjectId)
+      const pickupRequired = pickableObjectIds.size > 0
+
+      const blockedFailures: ExecutionReadinessReport['blockedFailures'] = []
+
+      if (missingTargetIds.length > 0) {
+        blockedFailures.push({
+          step_index: 0,
+          step_type: 'move',
+          error_code: 'object_consistency',
+          message: `Task references missing scene targets: ${Array.from(new Set(missingTargetIds)).join(', ')}`,
+          suggested_fix: 'Use only target IDs that exist in the current simulation scene graph.',
+        })
+      }
+
+      if (pickupRequired && !hasGripClose) {
+        blockedFailures.push({
+          step_index: 0,
+          step_type: 'grip',
+          error_code: 'precondition_unmet',
+          message: 'Scene contains pickable objects, but task has no grip-close step.',
+          suggested_fix: 'Insert move-to-object then grip-close before transport steps.',
+        })
+      }
+
+      if (pickupRequired && hasGripClose && !pickupSucceeded) {
+        blockedFailures.push({
+          step_index: 0,
+          step_type: 'grip',
+          error_code: 'precondition_unmet',
+          message: 'Compiled task never grips any existing scene object.',
+          suggested_fix: 'Align pre-close move target with a pickable object and retry with approach waypoints.',
+        })
+      }
+
+      if (pickupObjectId && !pickableObjectIds.has(pickupObjectId)) {
+        blockedFailures.push({
+          step_index: 0,
+          step_type: 'grip',
+          error_code: 'object_consistency',
+          message: `Compiled pickup latched onto non-pickable target '${pickupObjectId}'.`,
+          suggested_fix: 'Restrict pickup targets to box/cylinder/sphere scene objects.',
+        })
+      }
+
+      return {
+        missingTargetIds,
+        pickupRequired,
+        hasGripClose,
+        pickupSucceeded,
+        pickupObjectId,
+        blockedFailures,
+      }
+    },
+    [sceneGraph.objects, sceneGraph.targetZones],
+  )
+
+  const repairUntilCollisionFree = useCallback(
+    async (
+      initialTask: any,
+      initialFailures: any[],
+      activeSegments: ArmSegment[],
+      activeGripper: GripperConfig,
+    ) => {
+      let workingTask = initialTask
+      let failures = [...initialFailures]
+      let latestPreflight: any = null
+
+      for (let attempt = 0; attempt < MAX_COLLISION_REPAIR_LOOPS; attempt += 1) {
+        const { flow, collisionCount, compiled } = countCollisionFrames(workingTask, activeSegments)
+        const readiness = evaluateExecutionReadiness(flow.nodes, compiled)
+        setGateDebug({
+          compileOk: compiled != null,
+          collisionFrames: collisionCount,
+          missingTargetIds: readiness.missingTargetIds,
+          pickupRequired: readiness.pickupRequired,
+          hasGripClose: readiness.hasGripClose,
+          pickupSucceeded: readiness.pickupSucceeded,
+          pickupObjectId: readiness.pickupObjectId,
+          blockedReasons: readiness.blockedFailures.map((failure) => failure.message),
+          attempt: attempt + 1,
+        })
+        const hasFailures = failures.length > 0
+        const hasReadinessFailures = readiness.blockedFailures.length > 0
+        const compileFailed = compiled == null
+
+        if (!hasFailures && !hasReadinessFailures && !compileFailed && collisionCount === 0) {
+          return {
+            task: workingTask,
+            flow,
+            collisionCount: 0,
+            failed: false,
+            preflight: latestPreflight,
+            failReason: '',
+            pickupObjectId: readiness.pickupObjectId,
+          }
+        }
+
+        const repairFailures = [...failures]
+        if (compileFailed) {
+          repairFailures.push({
+            step_index: 0,
+            step_type: 'compile',
+            error_code: 'precondition_unmet',
+            message: 'Task could not be compiled into simulation frames.',
+            suggested_fix: 'Return a valid linear block flow with executable move and grip steps.',
+          })
+        }
+        if (collisionCount > 0) {
+          repairFailures.push({
+            step_index: 0,
+            step_type: 'move',
+            error_code: 'collision_risk',
+            message: `Compiled simulation still has ${collisionCount} collision frame(s).`,
+            suggested_fix: 'Insert safer approach/retreat waypoints and raise transport height.',
+          })
+        }
+        for (const readinessFailure of readiness.blockedFailures) {
+          repairFailures.push(readinessFailure)
+        }
+
+        const armContext = buildArmContext(activeSegments, activeGripper, {})
+        let repaired: any
+        try {
+          repaired = await repairTask(workingTask, repairFailures, armContext)
+        } catch (repairErr: any) {
+          return {
+            task: workingTask,
+            flow,
+            collisionCount,
+            failed: true,
+            preflight: latestPreflight,
+            failReason: String(repairErr?.message || repairErr || 'Repair request failed.'),
+            pickupObjectId: readiness.pickupObjectId,
+          }
+        }
+        const repairedTask = repaired.repaired_task || repaired.repairedTask || null
+        if (!repairedTask) {
+          return {
+            task: workingTask,
+            flow,
+            collisionCount,
+            failed: true,
+            preflight: latestPreflight,
+            failReason: 'Repair endpoint returned no task for execution-gate failures.',
+            pickupObjectId: readiness.pickupObjectId,
+          }
+        }
+
+        workingTask = repairedTask
+        latestPreflight = repaired.preflight ?? repaired.preFlight ?? null
+        failures = Array.isArray(latestPreflight?.errors) ? latestPreflight.errors : []
+      }
+
+      const final = countCollisionFrames(workingTask, activeSegments)
+      const readiness = evaluateExecutionReadiness(final.flow.nodes, final.compiled)
+      setGateDebug({
+        compileOk: final.compiled != null,
+        collisionFrames: final.collisionCount,
+        missingTargetIds: readiness.missingTargetIds,
+        pickupRequired: readiness.pickupRequired,
+        hasGripClose: readiness.hasGripClose,
+        pickupSucceeded: readiness.pickupSucceeded,
+        pickupObjectId: readiness.pickupObjectId,
+        blockedReasons: readiness.blockedFailures.map((failure) => failure.message),
+        attempt: MAX_COLLISION_REPAIR_LOOPS,
+      })
+      const failed = final.collisionCount > 0 || readiness.blockedFailures.length > 0 || final.compiled == null
+      const failReason = failed
+        ? readiness.blockedFailures[0]?.message ||
+          (final.compiled == null
+            ? 'Task compilation failed during final verification.'
+            : `Compiled simulation still has ${final.collisionCount} collision frame(s).`)
+        : ''
+
+      return {
+        task: workingTask,
+        flow: final.flow,
+        collisionCount: final.collisionCount,
+        failed,
+        preflight: latestPreflight,
+        failReason,
+        pickupObjectId: readiness.pickupObjectId,
+      }
+    },
+    [countCollisionFrames, evaluateExecutionReadiness],
+  )
+  const triggerAutoSimulationRun = useCallback(() => {
+    if (typeof window === 'undefined') return
+    window.dispatchEvent(new CustomEvent('mirai:auto-run-simulation'))
+  }, [])
+
+  const handleAutoConfigForPickability = useCallback(() => {
+    if (!pickability.object) {
+      setConfigFixNote('No target object was found to optimize against.')
+      return
+    }
+
+    let changed = false
+    let workingSegments = segments
+    let updatedGripper = { ...gripper }
+
+    if (!pickability.reachOk) {
+      const fakeReachError = [{ message: `Target (${pickability.object.position[0].toFixed(2)}, ${pickability.object.position[1].toFixed(2)}, ${pickability.object.position[2].toFixed(2)}) is ${pickability.targetDistanceM.toFixed(2)}m away, but max reach is ${(segments.reduce((sum, segment) => sum + segment.length, 0) * 1.1).toFixed(2)}m` }]
+      const tuned = autoConfigureArmForReach(segments, fakeReachError)
+      if (tuned.changed) {
+        workingSegments = tuned.updated
+        changed = true
+      }
+
+      const updatedReach = workingSegments.reduce((sum, segment) => sum + segment.length, 0) * 1.1
+      if (updatedReach + 1e-6 < pickability.targetDistanceM && workingSegments.length < MAX_SEGMENTS) {
+        const neededLength = Math.max(SEGMENT_MIN_LENGTH, Math.min(SEGMENT_MAX_LENGTH, (pickability.targetDistanceM - updatedReach) / 1.1 + 0.06))
+        workingSegments = [
+          ...workingSegments,
+          {
+            id: `seg-auto-${Date.now()}`,
+            name: `Auto Segment ${workingSegments.length}`,
+            length: Number(neededLength.toFixed(3)),
+            mass: 0.45,
+            joint: 'revolute',
+            jointLimitMin: -110,
+            jointLimitMax: 110,
+            material: 'carbon_fiber',
+            color: '#d8dde5',
+          },
+        ]
+        changed = true
+      }
+    }
+
+    if (!pickability.toolOk) {
+      // Prefer a controllable gripper profile for most rigid-object tasks.
+      if (updatedGripper.type !== 'parallel_jaw') {
+        updatedGripper = {
+          ...updatedGripper,
+          type: 'parallel_jaw',
+          name: 'Parallel Jaw (Auto)',
+        }
+        changed = true
+      }
+
+      const targetWidth = Math.max(updatedGripper.width, pickability.requiredGripSpanM + 0.01)
+      const targetForce = Math.max(updatedGripper.force, pickability.requiredGripForceN + 6)
+      if (Math.abs(targetWidth - updatedGripper.width) > 1e-6 || Math.abs(targetForce - updatedGripper.force) > 1e-6) {
+        updatedGripper = {
+          ...updatedGripper,
+          width: Number(Math.min(0.2, targetWidth).toFixed(3)),
+          force: Number(Math.min(140, targetForce).toFixed(1)),
+        }
+        changed = true
+      }
+    }
+
+    if (changed) {
+      setSegments(workingSegments)
+      setGripper(updatedGripper)
+      setConfigFixNote('Arm configuration auto-updated for target pickability.')
+    } else {
+      setConfigFixNote('Current configuration is already suitable for this target.')
+    }
+  }, [gripper, pickability, segments, setGripper, setSegments])
+
   const handleAIFix = async () => {
     if (!generatedTask || !preflight || preflight.errors.length === 0 || isAILoading) return
 
     setIsAILoading(true)
     setAIError(null)
+    syncExecutionGate('verifying', 'Verifying collision safety and pickup execution before simulation handoff...')
     try {
       let workingSegments = segments
       const reachFailures = preflight.errors.filter((error) => error.error_code === 'reach_violation')
@@ -245,7 +910,20 @@ export default function TaskEditorPanel() {
       setGeneratedTask(repairedTask)
       setTaskName(String(repairedTask.task_name || repairedTask.taskName || 'AI Repaired Task'))
 
-      const flow = buildFlowFromAITask(repairedTask)
+      const ensured = await repairUntilCollisionFree(repairedTask, preflight.errors, workingSegments, gripper)
+      if (ensured.failed || ensured.collisionCount > 0) {
+        syncExecutionGate('blocked', ensured.failReason || 'Execution gate failed: plan is not safe to simulate.')
+        setAIError('AI could not produce a collision-free, pickup-valid repair. Try refining the prompt or arm setup.')
+        return
+      }
+
+      const flow = ensured.flow
+      setGeneratedTask(ensured.task)
+      setTaskName(String(ensured.task.task_name || ensured.task.taskName || 'AI Repaired Task'))
+
+      // Persist immediately so simulation compile does not race panel unmount.
+      setTaskNodes(flow.nodes)
+      setTaskEdges(flow.edges)
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('mirai:load-task', {
           detail: {
@@ -255,23 +933,79 @@ export default function TaskEditorPanel() {
         }))
       }
 
+      const loaded = await waitForTaskflowLoaded(flow.nodes.length)
+      if (!loaded) {
+        syncExecutionGate('blocked', 'Task graph load acknowledgment timed out before simulation switch.')
+        setAIError('Task graph did not finish loading in canvas. Auto-navigation was cancelled.')
+        return
+      }
+
+      syncExecutionGate(
+        'ready',
+        ensured.pickupObjectId
+          ? `Execution verified: will pick ${ensured.pickupObjectId} before transport.`
+          : 'Execution verified: collision-safe and ready for simulation.',
+      )
+
       setPreflight({
         is_safe: true,
         errors: [],
-        warnings: ['Task was repaired by AI. Validate in simulation before export.', ...(reachFailures.length > 0 ? ['Arm segments auto-tuned for reachability.'] : [])],
+        warnings: [
+          ...(ensured.preflight?.warnings || []),
+          'Task was repaired by AI and collision-checked.',
+          ...(reachFailures.length > 0 ? ['Arm segments auto-tuned for reachability.'] : []),
+        ],
       })
+      setAISuggestions([])
+      setSuggestionSource(null)
 
-      const repairedScore = Number(repairedTask.confidence_score ?? repairedTask.confidenceScore ?? 0.8)
+      const repairedScore = Number(ensured.task.confidence_score ?? ensured.task.confidenceScore ?? 0.8)
       setConfidence({
         overall: Math.max(0, Math.min(1, repairedScore)),
         warningFlags: ['Auto-repair applied'],
       })
+      triggerAutoSimulationRun()
     } catch (err: any) {
+      syncExecutionGate('blocked', 'Verification failed due to an AI repair error.')
       setAIError('AI fix error: ' + (err?.message || String(err)))
     } finally {
       setIsAILoading(false)
     }
   }
+
+  useEffect(() => {
+    if (!showAISuggestions || !generatedTask || !aiInput.trim()) return
+
+    let cancelled = false
+    const fetchSuggestions = async () => {
+      setIsSuggestionLoading(true)
+      try {
+        const armContext = buildArmContext(segments, gripper, {})
+        const result = await getMotionSuggestions({
+          userInput: aiInput,
+          armContext,
+          sceneObjects: getSceneObjectNames(sceneGraph),
+          taskSpec: generatedTask,
+          preflight,
+        })
+
+        if (cancelled) return
+        setAISuggestions(Array.isArray(result.suggestions) ? result.suggestions : [])
+        setSuggestionSource(result.source ?? null)
+      } catch {
+        if (cancelled) return
+        setAISuggestions([])
+        setSuggestionSource(null)
+      } finally {
+        if (!cancelled) setIsSuggestionLoading(false)
+      }
+    }
+
+    fetchSuggestions()
+    return () => {
+      cancelled = true
+    }
+  }, [showAISuggestions, generatedTask, aiInput, segments, gripper, sceneGraph, preflight])
 
   // AI motion generation handler
   const handleAIGenerate = async () => {
@@ -281,15 +1015,20 @@ export default function TaskEditorPanel() {
     setReactSteps([])
     setGeneratedTask(null)
     setPreflight(null)
-    setShowAIResults(false)
+    setConfigFixNote(null)
+    setShowAIResults(true)
     setShowAISuggestions(false)
+    setShowThinkTrace(false)
+    setAISuggestions([])
+    setSuggestionSource(null)
+    syncExecutionGate('verifying', 'Generating and verifying a safe, pickup-valid plan...')
     try {
       abortRef.current = new AbortController()
       const armContext = buildArmContext(segments, gripper, {})
       const request = {
         userInput: aiInput,
         armContext,
-        sceneObjects: getSceneObjectNames({}),
+        sceneObjects: getSceneObjectNames(sceneGraph),
         allowedVerbs: buildAllowedVerbs(),
       }
       let foundTask = false
@@ -308,7 +1047,7 @@ export default function TaskEditorPanel() {
           ]))
         }
         if (chunk.type === 'task_spec' && chunk.task) {
-          const flow = buildFlowFromAITask(chunk.task)
+          const flow = normalizeFlowTargetIds(buildFlowFromAITask(chunk.task), sceneGraph)
 
           if (flow.nodes.length <= 2) {
             setAIError('AI returned an empty plan. Try a more explicit prompt like: "pick object A and place it in Zone B".')
@@ -317,25 +1056,67 @@ export default function TaskEditorPanel() {
 
           const preflight = chunk.preflight || { is_safe: false, errors: [], warnings: ['No preflight report'] }
 
-          setGeneratedTask(chunk.task)
-          setPreflight(preflight)
+          // Auto-reconfigure arm for reach failures and keep planning autonomous.
+          const reachFailures = (preflight.errors || []).filter((error: any) => error.error_code === 'reach_violation')
+          let activeSegments = segments
+          if (reachFailures.length > 0) {
+            const tuned = autoConfigureArmForReach(segments, reachFailures)
+            if (tuned.changed) {
+              activeSegments = tuned.updated
+              setSegments(tuned.updated)
+            }
+          }
 
-          const baseConfidence = Number(chunk.task.confidence_score ?? chunk.task.confidenceScore ?? 0.75)
+          const ensured = await repairUntilCollisionFree(chunk.task, preflight.errors || [], activeSegments, gripper)
+          if (ensured.failed || ensured.collisionCount > 0) {
+            syncExecutionGate('blocked', ensured.failReason || 'Execution gate failed: pickup/safety verification did not pass.')
+            setAIError('AI could not produce a collision-free plan after iterative auto-repair.')
+            continue
+          }
+
+          setGeneratedTask(ensured.task)
+          setPreflight({
+            is_safe: true,
+            errors: [],
+            warnings: [...(ensured.preflight?.warnings || preflight.warnings || [])],
+          })
+
+          const baseConfidence = Number(ensured.task.confidence_score ?? ensured.task.confidenceScore ?? 0.75)
           setConfidence({
             overall: Math.max(0, Math.min(1, baseConfidence)),
             warningFlags: preflight.warnings || [],
           })
 
+          // Persist immediately so simulation compile does not race panel unmount.
+          setTaskNodes(ensured.flow.nodes)
+          setTaskEdges(ensured.flow.edges)
+
           // Instead of setNodes/setEdges, dispatch event for TaskFlowCanvas
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new CustomEvent('mirai:load-task', {
               detail: {
-                nodes: flow.nodes,
-                edges: flow.edges,
+                nodes: ensured.flow.nodes,
+                edges: ensured.flow.edges,
               },
             }))
           }
-          setTaskName(String(chunk.task.task_name || chunk.task.taskName || 'AI Generated Task'))
+          setTaskName(String(ensured.task.task_name || ensured.task.taskName || 'AI Generated Task'))
+
+          const loaded = await waitForTaskflowLoaded(ensured.flow.nodes.length)
+          if (!loaded) {
+            syncExecutionGate('blocked', 'Task graph load acknowledgment timed out before simulation switch.')
+            setAIError('Task graph did not finish loading in canvas. Auto-navigation was cancelled.')
+            continue
+          }
+
+          syncExecutionGate(
+            'ready',
+            ensured.pickupObjectId
+              ? `Execution verified: will pick ${ensured.pickupObjectId} before transport.`
+              : 'Execution verified: collision-safe and ready for simulation.',
+          )
+
+          triggerAutoSimulationRun()
           foundTask = true
         }
         if (chunk.type === 'error') {
@@ -343,9 +1124,63 @@ export default function TaskEditorPanel() {
         }
       }
       if (!foundTask) {
-        setAIError('No valid task generated by AI.')
+        const fallbackTask = buildDeterministicFallbackTask(aiInput, sceneGraph, gripper)
+        if (fallbackTask) {
+          const ensured = await repairUntilCollisionFree(fallbackTask, [], segments, gripper)
+          if (!ensured.failed && ensured.collisionCount === 0) {
+            setGeneratedTask(ensured.task)
+            setPreflight({
+              is_safe: true,
+              errors: [],
+              warnings: [
+                ...(ensured.preflight?.warnings || []),
+                'Fallback deterministic pick-and-place plan was used after AI retries.',
+              ],
+            })
+            setConfidence({
+              overall: Math.max(0, Math.min(1, Number(ensured.task.confidence_score ?? 0.58))),
+              warningFlags: ['Fallback plan applied'],
+            })
+
+            setTaskNodes(ensured.flow.nodes)
+            setTaskEdges(ensured.flow.edges)
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('mirai:load-task', {
+                detail: {
+                  nodes: ensured.flow.nodes,
+                  edges: ensured.flow.edges,
+                },
+              }))
+            }
+
+            setTaskName(String(ensured.task.task_name || ensured.task.taskName || 'AI Fallback Task'))
+            const loaded = await waitForTaskflowLoaded(ensured.flow.nodes.length)
+            if (loaded) {
+              syncExecutionGate(
+                'ready',
+                ensured.pickupObjectId
+                  ? `Fallback verified: will pick ${ensured.pickupObjectId} before transport.`
+                  : 'Fallback verified: collision-safe and ready for simulation.',
+              )
+              triggerAutoSimulationRun()
+              foundTask = true
+            } else {
+              syncExecutionGate('blocked', 'Fallback plan passed checks but canvas load acknowledgement timed out.')
+              setAIError('Fallback plan generated, but task graph failed to load in time.')
+            }
+          } else {
+            syncExecutionGate('blocked', ensured.failReason || 'Fallback plan failed execution gate checks.')
+            setAIError('No valid task generated by AI or fallback planner. Open Gate Debug for blocking reason.')
+          }
+        }
+
+        if (!foundTask) {
+          syncExecutionGate('blocked', 'No valid plan passed the execution gate.')
+          setAIError('No valid task generated by AI.')
+        }
       }
     } catch (err: any) {
+      syncExecutionGate('blocked', 'Generation failed before verification could complete.')
       setAIError('AI error: ' + (err?.message || String(err)))
     } finally {
       setIsAILoading(false)
@@ -531,6 +1366,44 @@ export default function TaskEditorPanel() {
                       {reachabilitySummary.label}
                     </strong>
                   </div>
+                  <div className="task-ai-results-row">
+                    <span>Collision Risk</span>
+                    <strong className={collisionErrors.length === 0 ? 'task-ai-pass' : 'task-ai-fail'}>
+                      {collisionErrors.length === 0 ? 'Clear' : `${collisionErrors.length} risk${collisionErrors.length !== 1 ? 's' : ''}`}
+                    </strong>
+                  </div>
+                  <div className="task-ai-results-row">
+                    <span>Target Pickability</span>
+                    <strong className={pickability.isPickable ? 'task-ai-pass' : 'task-ai-fail'}>
+                      {pickability.isPickable ? 'Pickable' : 'Not pickable'}
+                    </strong>
+                  </div>
+                  <div className="task-ai-results-row">
+                    <span>Pre-Sim Verification</span>
+                    <strong className={`task-ai-gate task-ai-gate--${preSimulationStatus.phase}`}>
+                      {preSimulationStatus.phase === 'verifying' ? 'Verifying...' : preSimulationStatus.phase === 'ready' ? 'Ready' : preSimulationStatus.phase === 'blocked' ? 'Blocked' : 'Idle'}
+                    </strong>
+                  </div>
+                  {preSimulationStatus.phase !== 'idle' && (
+                    <div className={`task-ai-gate-note task-ai-gate-note--${preSimulationStatus.phase}`}>
+                      {preSimulationStatus.message}
+                    </div>
+                  )}
+                  {collisionErrors.length > 0 && (
+                    <ul className="task-ai-results-warnings">
+                      {collisionErrors.slice(0, 3).map((error, index) => (
+                        <li key={index}>{error.message}</li>
+                      ))}
+                    </ul>
+                  )}
+                  {pickability.object && (
+                    <div className="task-ai-results-steps">
+                      Target: {pickability.object.name} · dist {pickability.targetDistanceM.toFixed(2)}m · est mass {pickability.estimatedMassKg.toFixed(2)}kg
+                    </div>
+                  )}
+                  {!pickability.isPickable && (
+                    <div className="task-ai-results-steps">{pickability.reason}</div>
+                  )}
                   {reachabilitySummary.label !== 'Pass' && (
                     <div className="task-ai-results-steps">{reachabilitySummary.detail}</div>
                   )}
@@ -569,26 +1442,174 @@ export default function TaskEditorPanel() {
                     >
                       {showAISuggestions ? 'Hide AI Suggestions' : 'AI Suggestions'}
                     </button>
+                    <button
+                      type="button"
+                      className="task-ai-results-action-btn"
+                      onClick={() => setShowThinkTrace((v) => !v)}
+                    >
+                      {showThinkTrace ? 'Hide Think Trace' : 'Think Trace'}
+                    </button>
+                    <button
+                      type="button"
+                      className="task-ai-results-action-btn"
+                      onClick={() => setShowGateDebug((v) => !v)}
+                    >
+                      {showGateDebug ? 'Hide Gate Debug' : 'Gate Debug'}
+                    </button>
+                    <button
+                      type="button"
+                      className="task-ai-results-action-btn task-ai-results-action-btn--config"
+                      onClick={handleAutoConfigForPickability}
+                      disabled={isAILoading || pickability.isPickable}
+                      title={pickability.isPickable ? 'Target already pickable with current arm setup' : 'Auto-fix arm configuration for pickability'}
+                    >
+                      Auto-config Arm
+                    </button>
                   </div>
+
+                  {configFixNote && <div className="task-ai-config-note">{configFixNote}</div>}
 
                   {showAISuggestions && (
                     <div className="task-ai-suggestions-list">
-                      {suggestions.length > 0 ? (
-                        suggestions.map((item, index) => (
+                      {isSuggestionLoading ? (
+                        <div className="task-ai-suggestion-empty">Loading server-grounded suggestions...</div>
+                      ) : aiSuggestions.length > 0 ? (
+                        <>
+                        {suggestionSource && (
+                          <div className="task-ai-suggestion-source">Source: {suggestionSource}</div>
+                        )}
+                        {aiSuggestions.map((item, index) => (
                           <div key={index} className="task-ai-suggestion-item">
                             {item}
                           </div>
-                        ))
+                        ))}
+                        </>
                       ) : (
                         <div className="task-ai-suggestion-empty">
-                          No suggestions right now.
+                          No suggestions available right now.
                         </div>
+                      )}
+                    </div>
+                  )}
+
+                  {showThinkTrace && (
+                    <div className="task-ai-react-wrap">
+                      <ReActPanel steps={reactSteps} />
+                    </div>
+                  )}
+
+                  {showGateDebug && (
+                    <div className="task-ai-gate-debug" role="region" aria-label="Execution gate diagnostics">
+                      <div className="task-ai-gate-debug-grid">
+                        <div className="task-ai-gate-debug-item">
+                          <span>Attempt</span>
+                          <strong>{gateDebug.attempt}</strong>
+                        </div>
+                        <div className="task-ai-gate-debug-item">
+                          <span>Compile</span>
+                          <strong className={gateDebug.compileOk ? 'task-ai-pass' : 'task-ai-fail'}>
+                            {gateDebug.compileOk ? 'OK' : 'Failed'}
+                          </strong>
+                        </div>
+                        <div className="task-ai-gate-debug-item">
+                          <span>Collision Frames</span>
+                          <strong className={gateDebug.collisionFrames === 0 ? 'task-ai-pass' : 'task-ai-fail'}>{gateDebug.collisionFrames}</strong>
+                        </div>
+                        <div className="task-ai-gate-debug-item">
+                          <span>Pickup Required</span>
+                          <strong>{gateDebug.pickupRequired ? 'Yes' : 'No'}</strong>
+                        </div>
+                        <div className="task-ai-gate-debug-item">
+                          <span>Grip-Close Step</span>
+                          <strong className={gateDebug.hasGripClose ? 'task-ai-pass' : 'task-ai-fail'}>
+                            {gateDebug.hasGripClose ? 'Present' : 'Missing'}
+                          </strong>
+                        </div>
+                        <div className="task-ai-gate-debug-item">
+                          <span>Pickup Result</span>
+                          <strong className={gateDebug.pickupSucceeded ? 'task-ai-pass' : 'task-ai-fail'}>
+                            {gateDebug.pickupSucceeded ? `Success (${gateDebug.pickupObjectId || 'object'})` : 'No object held'}
+                          </strong>
+                        </div>
+                      </div>
+
+                      {gateDebug.missingTargetIds.length > 0 && (
+                        <div className="task-ai-gate-debug-alert">
+                          Missing targets: {gateDebug.missingTargetIds.join(', ')}
+                        </div>
+                      )}
+
+                      {gateDebug.blockedReasons.length > 0 && (
+                        <ul className="task-ai-gate-debug-list">
+                          {gateDebug.blockedReasons.slice(0, 4).map((reason, index) => (
+                            <li key={index}>{reason}</li>
+                          ))}
+                        </ul>
                       )}
                     </div>
                   )}
                 </>
               ) : (
-                <div className="task-ai-results-empty">No AI result yet. Generate motion to see summary.</div>
+                <>
+                  <div className="task-ai-results-empty">
+                    {aiError || 'No AI result yet. Generate motion to see summary.'}
+                  </div>
+                  <div className="task-ai-results-row">
+                    <span>Pre-Sim Verification</span>
+                    <strong className={`task-ai-gate task-ai-gate--${preSimulationStatus.phase}`}>
+                      {preSimulationStatus.phase === 'verifying' ? 'Verifying...' : preSimulationStatus.phase === 'ready' ? 'Ready' : preSimulationStatus.phase === 'blocked' ? 'Blocked' : 'Idle'}
+                    </strong>
+                  </div>
+                  {preSimulationStatus.phase !== 'idle' && (
+                    <div className={`task-ai-gate-note task-ai-gate-note--${preSimulationStatus.phase}`}>
+                      {preSimulationStatus.message}
+                    </div>
+                  )}
+
+                  <div className="task-ai-results-actions">
+                    <button
+                      type="button"
+                      className="task-ai-results-action-btn"
+                      onClick={() => setShowGateDebug((v) => !v)}
+                    >
+                      {showGateDebug ? 'Hide Gate Debug' : 'Gate Debug'}
+                    </button>
+                  </div>
+
+                  {showGateDebug && (
+                    <div className="task-ai-gate-debug" role="region" aria-label="Execution gate diagnostics">
+                      <div className="task-ai-gate-debug-grid">
+                        <div className="task-ai-gate-debug-item">
+                          <span>Attempt</span>
+                          <strong>{gateDebug.attempt}</strong>
+                        </div>
+                        <div className="task-ai-gate-debug-item">
+                          <span>Compile</span>
+                          <strong className={gateDebug.compileOk ? 'task-ai-pass' : 'task-ai-fail'}>
+                            {gateDebug.compileOk ? 'OK' : 'Failed'}
+                          </strong>
+                        </div>
+                        <div className="task-ai-gate-debug-item">
+                          <span>Collision Frames</span>
+                          <strong className={gateDebug.collisionFrames === 0 ? 'task-ai-pass' : 'task-ai-fail'}>{gateDebug.collisionFrames}</strong>
+                        </div>
+                        <div className="task-ai-gate-debug-item">
+                          <span>Pickup Result</span>
+                          <strong className={gateDebug.pickupSucceeded ? 'task-ai-pass' : 'task-ai-fail'}>
+                            {gateDebug.pickupSucceeded ? `Success (${gateDebug.pickupObjectId || 'object'})` : 'No object held'}
+                          </strong>
+                        </div>
+                      </div>
+                      {gateDebug.blockedReasons.length > 0 && (
+                        <ul className="task-ai-gate-debug-list">
+                          {gateDebug.blockedReasons.slice(0, 4).map((reason, index) => (
+                            <li key={index}>{reason}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}

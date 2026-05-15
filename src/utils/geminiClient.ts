@@ -1,4 +1,4 @@
-import type { AIPlanRequest, StreamChunk } from '../types/ai'
+import type { AIPlanRequest, AISuggestRequest, AISuggestResponse, StreamChunk } from '../types/ai'
 
 const AI_BASE_URL = 'http://localhost:8000'
 
@@ -6,10 +6,17 @@ const AI_BASE_URL = 'http://localhost:8000'
 
 
 export async function* streamTaskPlan(request: AIPlanRequest): AsyncGenerator<StreamChunk> {
+  const payload = {
+    user_input: request.userInput,
+    arm_context: request.armContext,
+    scene_objects: request.sceneObjects,
+    allowed_verbs: request.allowedVerbs,
+  }
+
   const response = await fetch(AI_BASE_URL + '/ai/plan', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(request),
+    body: JSON.stringify(payload),
   })
 
   if (!response.ok) {
@@ -83,7 +90,7 @@ export async function repairTask(taskSpec: any, failures: any[], armContext: any
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       task_spec: taskSpec,
-      failures: failures,
+      failures,
       arm_context: armContext,
     }),
   })
@@ -94,4 +101,27 @@ export async function repairTask(taskSpec: any, failures: any[], armContext: any
   }
 
   return response.json()
+}
+
+export async function getMotionSuggestions(request: AISuggestRequest): Promise<AISuggestResponse> {
+  const payload = {
+    user_input: request.userInput,
+    arm_context: request.armContext,
+    scene_objects: request.sceneObjects,
+    task_spec: request.taskSpec,
+    preflight: request.preflight,
+  }
+
+  const response = await fetch(AI_BASE_URL + '/ai/suggest', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    throw new Error('Suggest failed: ' + response.status + ' ' + text)
+  }
+
+  return response.json() as Promise<AISuggestResponse>
 }

@@ -2083,6 +2083,18 @@ body.panel-resizing .designer-panel {
   padding: 9px 10px 10px;
   display: grid;
   gap: 6px;
+  animation: task-results-reveal 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes task-results-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .task-ai-results-row {
@@ -2104,6 +2116,148 @@ body.panel-resizing .designer-panel {
 
 .task-ai-fail {
   color: #991b1b;
+}
+
+.task-ai-gate {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.task-ai-gate--idle {
+  color: #444444;
+  background: #f2f2f2;
+}
+
+.task-ai-gate--verifying {
+  color: #1e3a8a;
+  background: rgba(29, 78, 216, 0.12);
+  border-color: rgba(29, 78, 216, 0.34);
+  animation: task-ai-gate-pulse 1.15s ease-in-out infinite;
+}
+
+.task-ai-gate--ready {
+  color: #166534;
+  background: rgba(22, 101, 52, 0.12);
+  border-color: rgba(22, 101, 52, 0.34);
+}
+
+.task-ai-gate--blocked {
+  color: #991b1b;
+  background: rgba(185, 28, 28, 0.12);
+  border-color: rgba(185, 28, 28, 0.34);
+}
+
+.task-ai-gate-note {
+  font-size: 0.74rem;
+  line-height: 1.45;
+  border-radius: 7px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 8px 9px;
+  animation: task-results-reveal 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.task-ai-gate-note--verifying {
+  color: #1e3a8a;
+  background: rgba(29, 78, 216, 0.06);
+}
+
+.task-ai-gate-note--ready {
+  color: #166534;
+  background: rgba(22, 101, 52, 0.06);
+}
+
+.task-ai-gate-note--blocked {
+  color: #991b1b;
+  background: rgba(185, 28, 28, 0.06);
+}
+
+@keyframes task-ai-gate-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(29, 78, 216, 0.26);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(29, 78, 216, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(29, 78, 216, 0);
+  }
+}
+
+.task-ai-gate-debug {
+  margin-top: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  padding: 9px;
+  background: #f7f7f7;
+  animation: task-gate-debug-reveal 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.task-ai-gate-debug-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.task-ai-gate-debug-item {
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  border-radius: 7px;
+  background: #ffffff;
+  min-height: 42px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+.task-ai-gate-debug-item span {
+  color: #555555;
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+.task-ai-gate-debug-item strong {
+  color: #111111;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.task-ai-gate-debug-alert {
+  margin-top: 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(185, 28, 28, 0.25);
+  background: rgba(185, 28, 28, 0.06);
+  color: #991b1b;
+  padding: 7px 8px;
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+
+.task-ai-gate-debug-list {
+  margin: 8px 0 0;
+  padding-left: 16px;
+  color: #9a3412;
+  font-size: 0.74rem;
+  line-height: 1.42;
+}
+
+@keyframes task-gate-debug-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .task-ai-results-warnings {
@@ -2166,10 +2320,30 @@ body.panel-resizing .designer-panel {
   border-color: #232323;
 }
 
+.task-ai-results-action-btn--config {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #ffffff;
+}
+
+.task-ai-results-action-btn--config:hover:not(:disabled) {
+  background: #1e293b;
+  border-color: #1e293b;
+}
+
 .task-ai-suggestions-list {
   display: grid;
   gap: 6px;
   margin-top: 2px;
+}
+
+.task-ai-suggestion-source {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #3f3f46;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 2px 2px 0;
 }
 
 .task-ai-suggestion-item {
@@ -2189,6 +2363,39 @@ body.panel-resizing .designer-panel {
   border-radius: 6px;
   background: rgba(0, 0, 0, 0.04);
   border-left: 3px solid #737373;
+}
+
+.task-ai-suggestions-list .task-ai-suggestion-empty {
+  animation: status-pulse 900ms ease-in-out infinite;
+}
+
+.task-ai-config-note {
+  font-size: 0.74rem;
+  line-height: 1.4;
+  color: #1e293b;
+  background: rgba(15, 23, 42, 0.07);
+  border-left: 3px solid #0f172a;
+  border-radius: 6px;
+  padding: 8px 10px;
+  animation: task-results-reveal 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.task-ai-react-wrap {
+  margin-top: 2px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 8px;
+  animation: task-results-reveal 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.task-ai-react-wrap .react-panel {
+  max-height: 220px;
+  gap: 8px;
+}
+
+.task-ai-react-wrap .react-empty {
+  padding: 16px 10px;
 }
 
 /* ── Node Palette ─────────────────────────────────────────────── */

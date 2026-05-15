@@ -50,12 +50,12 @@ Browser-based AI-powered robot arm simulator that makes robotics accessible to e
 | 2 | May 12 | Arm Design Studio | ✅ **COMPLETE** — All 12 files created, types defined, atoms/utils/components full stack, React 18 downgrade applied, app live at localhost:5173, TypeScript clean |
 | 3 | May 13 | Task Editor (React Flow) | ✅ **COMPLETE** — All 14 files created, 7 node types, palette, canvas, deletable edges, validation, Ctrl+S export, Ctrl+Z undo, TypeScript clean |
 | 4 | May 14 | Physics Simulation (Rapier) | ✅ **COMPLETE** — Sim pipeline finalized with arm-link collision detection, segment rigid bodies, revolute/prismatic constraints, and collision flash polish |
-| 5 | May 15 | Gemini AI Integration | ⏳ Ready to Start |
+| 5 | May 15 | Gemini AI Integration | 🔄 **IN PROGRESS** — TaskEditor AI workflow integrated (Generate, Results, Fix, Suggestions, Think Trace) |
 | 6 | May 16 | Backend + MuJoCo + Export | ⏳ Ready to Start |
 | 7 | May 17 | Community + Famous Preloads | ⏳ Ready to Start |
 | 8 | May 18–19 | Polish + Demo Prep + Submit | ⏳ Ready to Start |
 
-**STATUS:** Days 1–4 complete. Day 5 is ready to start.
+**STATUS:** Days 1–4 complete. Day 5 is in progress.
 
 ---
 
@@ -101,10 +101,46 @@ Browser-based AI-powered robot arm simulator that makes robotics accessible to e
 ✅ Collision highlighting applied to both arm segments AND environment objects simultaneously
 ✅ Object positioning adjusted to minimize gap between objects and work table surface
 
-### Day 5 — Gemini AI Integration (Not Started)
-❌ `/ai/plan` + `/ai/repair` endpoints
-❌ Grounded TaskSpec generation + deterministic repair loop
-❌ Voice input + ReAct Think/Act/Observe panel + pre-flight safety + confidence badge
+### Day 5 — Gemini AI Integration (In Progress)
+✅ AI integration consolidated into `TaskEditorPanel` (Tasks tab is now the canonical AI surface)
+✅ `Generate motion` now uses current scene + arm context and streams ReAct steps
+✅ `AI Results` in TaskEditor shows Confidence, Safety, Reachability, and Target Pickability
+✅ Actions in TaskEditor `AI Results`: `AI Fix`, `AI Suggestions`, `Think Trace`, `Auto-config Arm`
+✅ Auto-config behavior supports constrained arm tuning (segment length scaling, optional extra segment, gripper tuning)
+✅ Empty-plan guard prevents silent Start/End-only graph replacement
+✅ Backend normalization + alias hardening prevents repair crashes on partial Gemini JSON
+✅ Collision-risk detection promoted into deterministic preflight errors with suggested safe waypoint strategy
+✅ `/ai/plan` now performs bounded repair iterations when preflight fails (reach/collision/precondition)
+✅ Dedicated backend `/ai/suggest` endpoint now returns server-grounded motion suggestions (Gemini + deterministic merge)
+✅ Strict pickup object-consistency validation enforces same pre-close move target name and auto-corrects mismatches
+✅ Startup automation now resolves port 8000 conflicts programmatically and runs endpoint self-tests (`/ai/plan`, `/ai/repair`, `/ai/suggest`)
+✅ Generate-motion autonomy handoff now auto-switches to Simulate and auto-starts playback after AI plan/fix completion
+✅ TaskFlow synchronization hardened: Tasks canvas now acknowledges AI load events before auto-navigation
+✅ AI planning now performs iterative collision-repair loops (compile-check + repair) before simulation handoff
+✅ Backend `/ai/plan` now fails closed (no `task_spec` emitted) when blocking safety errors remain after repair iterations
+✅ Pre-simulation execution gate now enforces scene-target existence + successful pickup when pickable objects exist before auto-switch to Simulate
+✅ TaskEditor AI Results now exposes animated pre-simulation verification state (Idle/Verifying/Ready/Blocked)
+✅ App-level simulation listener now hard-blocks auto-run unless shared execution gate state is `ready`
+✅ TaskEditor AI Results now includes Gate Debug diagnostics panel (compile status, collision frames, pickup checks, missing targets, blocked reasons)
+✅ First E2E autonomy regression skeleton added for prompt→ack→gate→autoplay and blocked-path assertions (`e2e/autonomy-regression.spec.ts`)
+✅ AI flow now normalizes Gemini target names to canonical scene IDs before compile/gate checks (prevents false `missing target` blocks)
+✅ Deterministic fallback pick-and-place planner now runs when Gemini retries exhaust (keeps autonomous flow alive for prompts like `Pick up Box B and place on shelf`)
+✅ AI Results no longer appears empty on failed generation: verification state + Gate Debug render even without a generated TaskSpec
+✅ Fallback plan schema now matches backend `/ai/repair` contract (`stepId`, `targetName`, explicit move coordinates), fixing 422 repair failures
+✅ Repair-loop errors are now fail-soft in frontend (captured as gate failure reason instead of crashing generation flow)
+✅ Simulation collision behavior default updated: collisions now pause playback instead of auto-rewinding to earlier/start frames
+✅ Playback compiler now freezes a scene snapshot during active playback and ignores live scene-sync drift, preventing mid-run frame reset to start after successful grip/carry
+✅ Playback reset contract hardened: when playback returns to frame 0, dynamic scene objects now restore to compiled baseline positions in viewport and shared scene state
+✅ Frame-0 baseline enforcement now restores object pose/state (position + rotation + zero velocities), preventing cylinders from staying rolled/laid down after reset
+❌ MuJoCo cross-validation feed into TaskEditor AI results
+
+**Immediate Recommended Next Steps (May 15, 2026):**
+- 🔜 Add a simulation-side hard guard so `mirai:auto-run-simulation` is ignored unless latest execution gate status is `ready`
+- 🔜 Add a compact `Gate Debug` panel (missing targets, collision frames, pickup result) for fast operator diagnosis
+- 🔜 Add Playwright E2E for autonomous flow: prompt -> taskflow load ack -> gate ready -> simulate autoplay
+- 🔜 Add backend contract tests for `/ai/plan` and `/ai/repair` fail-closed semantics
+- 🔜 Begin Gemini SDK migration (`google.generativeai` -> `google.genai`) to remove deprecated API risk
+- 🔜 Prepare Day 6 MuJoCo validation bridge and expose Rapier vs MuJoCo divergence in TaskEditor AI Results
 
 ### Day 6 — Backend + MuJoCo + Export (Not Started)
 ❌ Railway deployment + MuJoCo WS pipeline + accuracy badge
@@ -554,6 +590,7 @@ Browser (React + Vite)
   → Gemini AI (frontend SDK or via FastAPI)
     → Text/voice → task JSON → populates React Flow
     → ReAct agent loop (Think→Act→Observe)
+    → TaskEditor-native AI Results (reachability/pickability/config-fix feedback)
   → FastAPI backend (server/main.py → Railway)
     → POST /ai/plan — Gemini orchestration
     → WS /ws/simulate — MuJoCo frame streaming
@@ -569,6 +606,15 @@ Browser (React + Vite)
 - **MuJoCo (server):** High-fidelity validation run after task is designed
 - UI shows: `"Rapier ✅ 94% accurate | MuJoCo validated"`
 - Side-by-side replay: Rapier left, MuJoCo right, divergence frames in red
+
+### Current AI UX Surface (May 15 Update)
+- Primary AI workflow is now in **Tasks → TaskEditorPanel** (not AI navbar)
+- TaskEditor AI Results includes:
+  - Reachability status + failing step details
+  - Target pickability status against current arm + gripper + scene
+  - One-click `Auto-config Arm` for non-pickable targets
+  - ReAct `Think Trace` expandable panel
+- Simulation object positions are synced back to shared scene state for AI grounding (realtime scene-aware planning)
 
 ### Gemini Integration Strategy
 - **Single prompt:** text → task JSON (fast path)

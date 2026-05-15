@@ -59,3 +59,22 @@ export interface VoiceState {
   audioBlob?: Blob
   error?: string
 }
+
+export interface AISuggestRequest {
+  userInput: string
+  armContext: AIPlanRequest['armContext']
+  sceneObjects: string[]
+  taskSpec?: any
+  preflight?: AIPreflightReport | null
+}
+
+export interface AISuggestResponse {
+  suggestions: string[]
+  source: 'gemini' | 'deterministic' | 'hybrid'
+}
+
+export interface ExecutionGateState {
+  phase: 'idle' | 'verifying' | 'ready' | 'blocked'
+  message: string
+  updatedAt: number
+}

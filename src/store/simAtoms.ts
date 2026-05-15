@@ -11,9 +11,16 @@ export const ptpSequencePlayingAtom = atom<boolean>(false)
 
 
 // Collision polish controls
-export const autoRewindOnCollisionAtom = atom<boolean>(true)
+export const autoRewindOnCollisionAtom = atom<boolean>(false)
 export const collisionRewindFramesAtom = atom<number>(12) // clamped in UI and playback engine
 export const collisionFlashMsAtom = atom<number>(420)
+
+export type SimObjectBaseline = {
+  position: [number, number, number]
+  rotation: [number, number, number, number]
+}
+
+export const simBaselineObjectStatesAtom = atom<Record<string, SimObjectBaseline>>({})
 
 
 export const currentSimFrameAtom = atom((get) => {
