@@ -69,7 +69,7 @@ function useSimPlayback() {
           }
           setStatus('complete')
           clearTick()
-          return plan.totalFrames - 1
+          return 0
         }
 
         if (isReverse && next < 0) {

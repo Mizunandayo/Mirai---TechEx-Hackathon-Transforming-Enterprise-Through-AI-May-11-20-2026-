@@ -13,6 +13,7 @@ import {
   currentSimFrameAtom,
   currentFrameAtom,
   simBaselineObjectStatesAtom,
+  type SimObjectBaseline,
 } from '../../store/simAtoms'
 
 function CollisionHaloBox({
@@ -92,6 +93,25 @@ export default function SceneObjects() {
   const gripOffsetRef = useRef<[number, number, number]>([0, 0, 0])
   const lastSceneSyncRef = useRef(0)
 
+  const applyObjectBaseline = (body: RigidBodyApi, baseline: SimObjectBaseline) => {
+    const [x, y, z] = baseline.position
+    const [qx, qy, qz, qw] = baseline.rotation
+    const [sx, sy, sz] = baseline.scale
+
+    const scalableBody = body as RigidBodyApi & {
+      setScale?: (scale: { x: number; y: number; z: number }, wakeUp?: boolean) => void
+    }
+
+    if (typeof scalableBody.setScale === 'function') {
+      scalableBody.setScale({ x: sx, y: sy, z: sz }, true)
+    }
+
+    body.setTranslation({ x, y, z }, true)
+    body.setRotation(new Quaternion(qx, qy, qz, qw), true)
+    body.setLinvel({ x: 0, y: 0, z: 0 }, true)
+    body.setAngvel({ x: 0, y: 0, z: 0 }, true)
+  }
+
   useEffect(() => {
     if (frameNumber !== 0) return
 
@@ -105,14 +125,12 @@ export default function SceneObjects() {
       if (!body) continue
 
       const baseline = baselineObjectStates[obj.id]
-      const resetPos = baseline?.position ?? obj.position
-      const resetRot = baseline?.rotation ?? ([0, 0, 0, 1] as [number, number, number, number])
-      const [x, y, z] = resetPos
-      const [qx, qy, qz, qw] = resetRot
-      body.setTranslation({ x, y, z }, true)
-      body.setRotation(new Quaternion(qx, qy, qz, qw), true)
-      body.setLinvel({ x: 0, y: 0, z: 0 }, true)
-      body.setAngvel({ x: 0, y: 0, z: 0 }, true)
+      const resetBaseline: SimObjectBaseline = baseline ?? {
+        position: obj.position,
+        rotation: [0, 0, 0, 1],
+        scale: obj.scale ?? [1, 1, 1],
+      }
+      applyObjectBaseline(body, resetBaseline)
     }
 
     if (hasBaseline) {
@@ -120,7 +138,7 @@ export default function SceneObjects() {
         ...prev,
         objects: prev.objects.map((obj) => {
           const reset = baselineObjectStates[obj.id]
-          return reset ? { ...obj, position: reset.position } : obj
+          return reset ? { ...obj, position: reset.position, scale: reset.scale } : obj
         }),
       }))
     }
@@ -137,12 +155,7 @@ export default function SceneObjects() {
         const body = bodyRefs.current.get(obj.id)
         if (!baseline || !body) continue
 
-        const [x, y, z] = baseline.position
-        const [qx, qy, qz, qw] = baseline.rotation
-        body.setTranslation({ x, y, z }, true)
-        body.setRotation(new Quaternion(qx, qy, qz, qw), true)
-        body.setLinvel({ x: 0, y: 0, z: 0 }, true)
-        body.setAngvel({ x: 0, y: 0, z: 0 }, true)
+        applyObjectBaseline(body, baseline)
       }
       return
     }

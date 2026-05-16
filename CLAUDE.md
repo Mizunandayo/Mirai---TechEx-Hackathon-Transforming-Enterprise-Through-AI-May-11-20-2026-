@@ -155,13 +155,11 @@ Browser-based AI-powered robot arm simulator that makes robotics accessible to e
 ✅ Shelf height: dimensions[1] 0.02 → 0.08m (position unchanged); zone-shelf Y: 0.32 → 0.35
 ✅ regression_test.py + regression_test_boxb.py added
 
-**Immediate Next: Day 6 — Backend + MuJoCo + Export**
-- 🔜 Add a simulation-side hard guard so `mirai:auto-run-simulation` is ignored unless latest execution gate status is `ready`
-- 🔜 Add a compact `Gate Debug` panel (missing targets, collision frames, pickup result) for fast operator diagnosis
-- 🔜 Add Playwright E2E for autonomous flow: prompt -> taskflow load ack -> gate ready -> simulate autoplay
-- 🔜 Add backend contract tests for `/ai/plan` and `/ai/repair` fail-closed semantics
-- 🔜 Begin Gemini SDK migration (`google.generativeai` -> `google.genai`) to remove deprecated API risk
-- 🔜 Prepare Day 6 MuJoCo validation bridge and expose Rapier vs MuJoCo divergence in TaskEditor AI Results
+**Immediate Next: Day 7 — Community + Famous Preloads + Presets**
+- 🔜 Add community browse/import flow + seeded task library
+- 🔜 Add famous preload tasks and real robot preset skins
+- 🔜 Run the full E2E quality pass and 60fps verification
+- 🔜 Finalize README / demo / submission prep for Day 8
 
 
 ### Day 6 — Backend + MuJoCo + Export ✅ COMPLETE

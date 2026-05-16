@@ -53,9 +53,14 @@ app = FastAPI(title='Mirai AI Backend', version='1.2.0')
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['http://localhost:5173', 'https://mirai.vercel.app'],
+    allow_origins=[
+        'http://localhost:5173',
+        'https://mirai.vercel.app',
+        'https://mirai-tech-ex-hackathon-transformin.vercel.app',
+        'https://mirai-tech-ex-hackathon-transforming-enterprise-thro-ev5t9xcrc.vercel.app',
+    ],
     allow_credentials=True,
-    allow_methods=['POST', 'GET'],
+    allow_methods=['POST', 'GET', 'OPTIONS'],
     allow_headers=['*'],
 )
 

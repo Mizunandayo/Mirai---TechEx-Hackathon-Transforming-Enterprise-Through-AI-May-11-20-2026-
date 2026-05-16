@@ -113,6 +113,24 @@ User empirically showed: Original arm (350+280=630mm revolute) FAILS for Box B. 
 
 ---
 
+### Session Log — May 17, 2026 (Docs Sync Follow-up)
+
+**What was done this session**
+- Reviewed CLAUDE.md, MIRAI_BLUEPRINT.md, and MIRAI_SESSION_CONTEXT.md for stale Day 6 status lines
+- Updated the project depth docs to reflect that Day 6 is complete and Day 7 is next
+- Kept the session backup log current for deployment, export CORS, and playback reset changes
+
+**Current doc state**
+- CLAUDE.md now marks Day 6 complete and points Immediate Next to Day 7
+- MIRAI_BLUEPRINT.md now marks Day 6 complete and updates the overall progress snapshot
+- MIRAI_SESSION_CONTEXT.md keeps the Day 6 completion log plus the live deployment/reset follow-up entries
+
+**Known follow-ups**
+- Confirm the Day 7 community/preload documentation if those files are added
+- Keep the live deployment URLs and backend origin allowlist in sync if the Vercel domain changes
+
+---
+
 ### Session Log — May 16, 2026 (Continued — Regression Test Findings + Collision Tolerance)
 
 #### Regression test findings (regression_test.py, run directly with API key)

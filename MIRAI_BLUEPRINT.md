@@ -145,10 +145,10 @@
 - Migrate backend Gemini integration from deprecated `google.generativeai` to `google.genai`
 - Implement Day 6 MuJoCo validation feed and divergence badge in AI Results
 
-### Day 6 — Backend + MuJoCo + Export (Ready to Start — May 16–17)
-❌ Railway deployment + MuJoCo WS pipeline + accuracy badge
-❌ Servo lifespan predictor + side-by-side Rapier vs MuJoCo replay
-❌ Deterministic code/BOM/URDF/QR/signed export pipeline
+### Day 6 — Backend + MuJoCo + Export ✅ COMPLETE
+✅ Railway deployment + MuJoCo WS pipeline + accuracy badge
+✅ Servo lifespan predictor + side-by-side Rapier vs MuJoCo replay
+✅ Deterministic code/BOM/URDF/QR/signed export pipeline
 
 ### Day 7 — Community + Preloads + Presets (Not Started)
 ❌ Community browse/import flow + seeded task library
@@ -405,10 +405,10 @@
 | Day 1 | May 11 (Sun) | Foundation + 3D Engine | ✅ Complete |
 | Day 2 | May 12 (Tue) | Arm Design Studio | ✅ Complete + UI polished |
 | Day 3 | May 13 (Wed) | Task Editor (React Flow) | ✅ Complete + RobotArm industrial redesign |
-| Day 4 | May 14 (Thu) | Physics Simulation (Rapier) | 🔄 In Progress (core sim + fixes active) |
-| Day 5 | May 15 (Fri) | Gemini AI Integration | ❌ Not Started |
-| Day 6 | May 16 (Sat) | Backend + MuJoCo + Export | ❌ Not Started |
-| Day 7 | May 17 (Sun) | Community + Preloads + Real Robot Skins | ❌ Not Started |
+| Day 4 | May 14 (Thu) | Physics Simulation (Rapier) | ✅ Complete |
+| Day 5 | May 15 (Fri) | Gemini AI Integration | ✅ Complete |
+| Day 6 | May 16 (Sat) | Backend + MuJoCo + Export | ✅ Complete |
+| Day 7 | May 17 (Sun) | Community + Preloads + Real Robot Skins | 🔄 In Progress |
 | Day 8 | May 18–19 (Mon–Tue) | Polish + Demo Prep + Submit | ❌ Not Started |
 
 > **⏰ Time remaining from May 14: ~4.5 days**

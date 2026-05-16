@@ -23,6 +23,7 @@ export interface SceneObject {
   type: SceneObjectType
   position: [number, number, number]   // meters [x, y, z]
   dimensions: [number, number, number] // meters [w, h, d]
+  scale?: [number, number, number]
   color?: string
 }
 

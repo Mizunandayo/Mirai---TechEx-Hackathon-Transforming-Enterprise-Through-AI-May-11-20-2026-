@@ -111,6 +111,7 @@ export default function PlaybackControls() {
           {
             position: [...obj.position] as [number, number, number],
             rotation: [0, 0, 0, 1] as [number, number, number, number],
+            scale: (obj.scale ? [...obj.scale] : [1, 1, 1]) as [number, number, number],
           },
         ]),
       )

@@ -18,6 +18,7 @@ export const collisionFlashMsAtom = atom<number>(420)
 export type SimObjectBaseline = {
   position: [number, number, number]
   rotation: [number, number, number, number]
+  scale: [number, number, number]
 }
 
 export const simBaselineObjectStatesAtom = atom<Record<string, SimObjectBaseline>>({})
