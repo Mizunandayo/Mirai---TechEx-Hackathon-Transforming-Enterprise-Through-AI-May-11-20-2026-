@@ -260,6 +260,115 @@ export function findDestination(
   )
 }
 
+// ── Obstacle-aware approach planner ─────────────────────────────────────────
+
+/**
+ * Determine if a pickup approach path would collide with an elevated surface.
+ * The shelf sits at Y≈0.3 and its footprint blocks the arm when it descends
+ * from transit height to approach the pickup object below the shelf edge.
+ *
+ * Returns a safe intermediate Z position outside the surface footprint,
+ * or null when the direct approach is clear.
+ */
+export function computeObstacleAwareApproach(
+  pickObj: SceneObject,
+  scene: SceneGraph,
+): { needsAvoidance: boolean; safeApproachZ: number; blockingSurface: string | null } {
+  const [px, , pz] = pickObj.position
+  const MARGIN = 0.06   // approach margin beyond surface edge
+
+  for (const obj of scene.objects) {
+    if (obj.type !== 'surface') continue
+    if (obj.id === 'table') continue   // floor-level table — arm is mounted on/above it
+
+    const [sx, , sz] = obj.position
+    const [sw, , sd]  = obj.dimensions
+    const halfX = sw / 2 + 0.02
+    const halfZ = sd / 2 + 0.02
+
+    // Does the pickup X fall inside this surface's X footprint?
+    const xOverlap = Math.abs(px - sx) <= halfX
+    // Is the pickup Z at or inside this surface's Z footprint?
+    const zOverlap = Math.abs(pz - sz) <= halfZ
+
+    if (xOverlap && zOverlap) {
+      // Pickup is UNDER the surface or at its edge → arm approach blocked.
+      // Safe Z = front face of surface minus MARGIN (arm comes from the front).
+      const surfaceFrontZ = sz - sd / 2   // Z of the nearer face toward negative Z
+      const safeZ = surfaceFrontZ - MARGIN
+      return { needsAvoidance: true, safeApproachZ: parseFloat(safeZ.toFixed(3)), blockingSurface: obj.id }
+    }
+  }
+
+  return { needsAvoidance: false, safeApproachZ: pz, blockingSurface: null }
+}
+
+/**
+ * Task feasibility analysis: can the arm complete the FULL task (pickup + deposit)?
+ * Returns a structured report with specific failure reasons.
+ */
+export interface TaskFeasibilityReport {
+  pickupFeasible: boolean
+  depositFeasible: boolean
+  fullyFeasible: boolean
+  pickupBlockedBy: string | null    // surface id if blocked by obstacle
+  depositDistance: number
+  maxReach: number
+  errorMessage: string | null
+}
+
+export function analyzeTaskFeasibility(
+  pickObjectId: string,
+  destinationId: string,
+  segments: { joint: string; length: number }[],
+  scene: SceneGraph,
+): TaskFeasibilityReport {
+  const pickObj  = scene.objects.find(o => o.id === pickObjectId)
+  const destZone = scene.targetZones.find(z => z.id === destinationId)
+  const destObj  = scene.objects.find(o => o.id === destinationId)
+
+  const totalLen = segments.reduce((s, seg) => s + seg.length, 0)
+  const maxReach = totalLen * 1.1
+
+  // Check pickup obstacle
+  const approachCheck = pickObj ? computeObstacleAwareApproach(pickObj, scene) : { needsAvoidance: false, blockingSurface: null, safeApproachZ: 0 }
+  const pickupFeasible = Boolean(pickObj)
+
+  // Check deposit reachability
+  const destPos: [number, number, number] = destZone
+    ? destZone.position as [number, number, number]
+    : destObj ? destObj.position as [number, number, number] : [0, 0, 0]
+  const [dx, dy, dz] = destPos
+  const depositDistance = Math.sqrt(dx * dx + dy * dy + dz * dz)
+  const depositFeasible = depositDistance <= maxReach
+
+  let errorMessage: string | null = null
+
+  if (!pickupFeasible) {
+    errorMessage = `Pickup object "${pickObjectId}" not found in scene.`
+  } else if (approachCheck.needsAvoidance && !depositFeasible) {
+    errorMessage =
+      `Task is infeasible: arm can pick up ${pickObj!.name} using obstacle-aware routing ` +
+      `(avoids ${approachCheck.blockingSurface}), but CANNOT reach the drop zone — ` +
+      `${(depositDistance * 1000).toFixed(0)}mm away, max reach ${(maxReach * 1000).toFixed(0)}mm. ` +
+      `Increase segment lengths in the Design tab.`
+  } else if (!depositFeasible) {
+    errorMessage =
+      `Arm can reach ${pickObj!.name} for pickup, but CANNOT reach the deposit zone — ` +
+      `${(depositDistance * 1000).toFixed(0)}mm away, max reach ${(maxReach * 1000).toFixed(0)}mm.`
+  }
+
+  return {
+    pickupFeasible,
+    depositFeasible,
+    fullyFeasible: pickupFeasible && depositFeasible,
+    pickupBlockedBy: approachCheck.blockingSurface,
+    depositDistance,
+    maxReach,
+    errorMessage,
+  }
+}
+
 // ── Deterministic fallback task builder ───────────────────────────────────────
 
 /**
@@ -284,49 +393,73 @@ export function buildFallbackTaskSpec(
   const force = Math.max(42, Math.min(95, gripper.force || 60))
   const label = `${pickObj.name} → ${dest.name}`
 
+  // Check if the approach needs obstacle avoidance (e.g. shelf blocking the path)
+  const avoidance = computeObstacleAwareApproach(pickObj, scene)
+
+  // Build approach steps — insert obstacle-avoidance intermediate waypoint if needed
+  const approachSteps: any[] = []
+  let stepId = 1
+
+  if (avoidance.needsAvoidance) {
+    // Intermediate: hover at same X but safe Z (outside blocking surface footprint)
+    approachSteps.push({
+      stepId: stepId++, type: 'move', targetName: pickObjectId,
+      x: seq.approachHover[0], y: seq.approachHover[1], z: avoidance.safeApproachZ,
+      speed: 0.4, approach: 'linear',
+    })
+  }
+
+  // Standard approach hover above pickup
+  approachSteps.push({
+    stepId: stepId++, type: 'move', targetName: pickObjectId,
+    x: seq.approachHover[0], y: seq.approachHover[1], z: seq.approachHover[2],
+    speed: 0.5, approach: 'above',
+  })
+
+  // Descend to grip
+  approachSteps.push({
+    stepId: stepId++, type: 'move', targetName: pickObjectId,
+    x: seq.gripPoint[0], y: seq.gripPoint[1], z: seq.gripPoint[2],
+    speed: 0.25, approach: 'linear',
+  })
+
+  const warnings = ['Deterministic planner — waypoints computed from scene AABB geometry.']
+  if (avoidance.needsAvoidance) {
+    warnings.push(`Obstacle-aware approach: routes around ${avoidance.blockingSurface} via Z=${avoidance.safeApproachZ.toFixed(3)}m.`)
+  }
+
   return {
     taskName: `Pick & Place: ${label}`,
     taskDescription: `Deterministic collision-free pick-and-place. Input: "${input.slice(0, 80)}"`,
     confidenceScore: 0.72,
-    warnings: ['Deterministic planner used — waypoints computed from scene AABB geometry.'],
+    warnings,
     steps: [
-      // 1. Hover above pickup object at safe transit height
+      ...approachSteps,
+      // Grip close (stepId continues from approachSteps)
+      { stepId: stepId++, type: 'grip', action: 'close', force },
+      // Lift straight up to transit height
       {
-        stepId: 1, type: 'move', targetName: pickObjectId,
-        x: seq.approachHover[0], y: seq.approachHover[1], z: seq.approachHover[2],
-        speed: 0.5, approach: 'above',
-      },
-      // 2. Descend straight down to grip height
-      {
-        stepId: 2, type: 'move', targetName: pickObjectId,
-        x: seq.gripPoint[0], y: seq.gripPoint[1], z: seq.gripPoint[2],
-        speed: 0.25, approach: 'linear',
-      },
-      // 3. Close gripper
-      { stepId: 3, type: 'grip', action: 'close', force },
-      // 4. Lift straight up to transit height
-      {
-        stepId: 4, type: 'move', targetName: pickObjectId,
+        stepId: stepId++, type: 'move', targetName: pickObjectId,
         x: seq.liftPoint[0], y: seq.liftPoint[1], z: seq.liftPoint[2],
         speed: 0.35, approach: 'linear',
       },
-      // 5. Transit laterally at safe height above destination
+      // Transit laterally at safe height above destination
       {
-        stepId: 5, type: 'move', targetName: destinationId,
+        stepId: stepId++, type: 'move', targetName: destinationId,
         x: seq.destHover[0], y: seq.destHover[1], z: seq.destHover[2],
         speed: 0.5, approach: 'linear',
       },
-      // 6. Lower to deposit height
+      // Lower to deposit height
       {
-        stepId: 6, type: 'move', targetName: destinationId,
+        stepId: stepId++, type: 'move', targetName: destinationId,
         x: seq.depositPoint[0], y: seq.depositPoint[1], z: seq.depositPoint[2],
         speed: 0.22, approach: 'linear',
       },
-      // 7. Release
-      { stepId: 7, type: 'grip', action: 'open', force: 0 },
-      // 8. Retreat to transit height
+      // Release
+      { stepId: stepId++, type: 'grip', action: 'open', force: 0 },
+      // Retreat to transit height
       {
-        stepId: 8, type: 'move', targetName: destinationId,
+        stepId: stepId++, type: 'move', targetName: destinationId,
         x: seq.retreatPoint[0], y: seq.retreatPoint[1], z: seq.retreatPoint[2],
         speed: 0.4, approach: 'linear',
       },

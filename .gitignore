@@ -48,3 +48,4 @@ MIRAI_SESSION_CONTEXT.md
 MIRAI_BLUEPRINT.pdf
 MIRAI_BLUEPRINT.md
 convert_blueprint.py
+regression_test.py

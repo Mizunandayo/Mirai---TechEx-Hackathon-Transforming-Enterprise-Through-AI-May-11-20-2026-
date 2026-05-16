@@ -21,8 +21,13 @@ const BASE_MOVE_FRAMES = 90
 const MIN_MOVE_FRAMES = 12
 const GRIP_HOLD_FRAMES = 20
 const POINT_COLLISION_MARGIN = 0.02
-const LINK_COLLISION_RADIUS = 0.022
-const LINK_COLLISION_SAMPLES = 16
+// ── Volumetric arm geometry constants ─────────────────────────────────────────
+// These match the VISUAL geometry of the robotic arm model in RobotArm.tsx.
+// The old 2.2 cm radius only checked the center-line axis of each link,
+// missing collisions where the link BODY (4-5 cm wide) contacted an obstacle.
+const LINK_COLLISION_RADIUS = 0.045   // arm link body half-width ~4.5 cm
+const JOINT_HOUSING_RADIUS  = 0.065   // joint disk housing radius  ~6.5 cm
+const LINK_COLLISION_SAMPLES = 32     // denser sampling for better link coverage
 const GRAB_RANGE = 0.18
 
 // Lateral-move threshold: XZ displacement must exceed this to be considered "lateral"
@@ -216,6 +221,55 @@ function checkAABBCollision(
   return null
 }
 
+/**
+ * Check spherical volumes at each JOINT HOUSING position.
+ *
+ * Joint housings (the disk-shaped connectors at each articulated joint)
+ * are wider than the link bodies — roughly 6-7 cm in diameter.
+ * The center-line sampler misses these completely because it only sweeps
+ * the 1-D axis between joint positions, not the volume at each joint.
+ *
+ * We check every joint from index 1 onward (the top of the base segment
+ * is the first joint that could contact scene objects; index 0 is the
+ * ground anchor at the arm origin).
+ *
+ * NOTE: Surface objects are intentionally excluded here — the lower joints
+ * are always near the table surface level, and surfaces use `checkAABBCollision`
+ * (EE point check) for deposit / pick operations. Only discrete obstacles
+ * (boxes, cylinders) are meaningful collision targets for joint housings.
+ */
+function checkJointHousings(
+  jointPositions: [number, number, number][],
+  scene: SceneGraph,
+  ignoreId?: string,
+): { objectId: string; jointIndex: number } | null {
+  for (let ji = 1; ji < jointPositions.length; ji++) {
+    const jp = jointPositions[ji]
+    if (!jp) continue
+
+    for (const obj of scene.objects) {
+      if (obj.type === 'zone') continue
+      // Skip ONLY the work table — the arm mounts on it, joint-vs-table
+      // contact is geometrically impossible. Every other surface (the elevated
+      // shelf, etc.) is a real obstacle joint housings can collide with.
+      if (obj.type === 'surface' && obj.id === 'table') continue
+      if (obj.id === ignoreId) continue
+
+      const [ox, oy, oz] = obj.position
+      const half: [number, number, number] = [
+        obj.dimensions[0] / 2 + JOINT_HOUSING_RADIUS,
+        obj.dimensions[1] / 2 + JOINT_HOUSING_RADIUS,
+        obj.dimensions[2] / 2 + JOINT_HOUSING_RADIUS,
+      ]
+
+      if (pointToAABBDistanceSq(jp, [ox, oy, oz], half) <= 0) {
+        return { objectId: obj.id, jointIndex: ji }
+      }
+    }
+  }
+  return null
+}
+
 function checkArmLinkCollision(
   segments: ArmSegment[],
   jointPositions: [number, number, number][],
@@ -235,14 +289,11 @@ function checkArmLinkCollision(
     for (const obj of scene.objects) {
       if (obj.type === 'zone') continue
       if (obj.id === ignoreId) continue
-      // Skip all surface-type objects from arm-link collision detection.
-      // Rationale: tabletop robot arms operate ON surfaces — the base sits on
-      // the table, so lower links are always near surface level. Surface
-      // collisions are detected via checkAABBCollision (end-effector check).
-      // Arm-link checks are reserved for discrete obstacles (boxes, cylinders).
-      // Joint-space interpolation in FABRIK produces path artifacts vs surfaces
-      // that would never occur with proper motion planning software.
-      if (obj.type === 'surface') continue
+      // Skip ONLY the work table — the arm base sits on it so link-vs-table
+      // contact is geometrically impossible. Elevated surfaces (shelf at Y=0.3)
+      // ARE real obstacles: arm links can and do pass through them during poor
+      // trajectories and must be detected.
+      if (obj.type === 'surface' && obj.id === 'table') continue
 
       const [ox, oy, oz] = obj.position
       const half: [number, number, number] = [
@@ -332,7 +383,14 @@ export function compileTask(
 
     const ignoreId = heldObjectId ?? approachTargetId ?? undefined
 
-    const linkHit = checkArmLinkCollision(segments, fk.jointPositions, scene, ignoreId)
+    // Volumetric collision detection — three layers covering the full arm geometry:
+    // 1. Joint housings (spheres at each articulated joint, 6.5 cm radius)
+    // 2. Link bodies   (swept capsule along each segment, 4.5 cm radius, 32 samples)
+    // 3. End-effector  (point check at tool tip with 2 cm margin)
+    const jointHit = checkJointHousings(fk.jointPositions, scene, ignoreId)
+    const linkHit  = jointHit
+      ? { objectId: jointHit.objectId, linkIndex: Math.max(0, jointHit.jointIndex - 1) }
+      : checkArmLinkCollision(segments, fk.jointPositions, scene, ignoreId)
     const eeHitId = linkHit ? null : checkAABBCollision(fk.endEffector, scene, ignoreId)
 
     const heldObjectPos: [number, number, number] | undefined =

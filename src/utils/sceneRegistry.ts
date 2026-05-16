@@ -38,7 +38,7 @@ export const DEFAULT_SCENE_OBJECTS: SceneObject[] = [
     name: 'Shelf',
     type: 'surface',
     position: [0.5, 0.3, 0],
-    dimensions: [0.4, 0.02, 0.2],
+    dimensions: [0.4, 0.08, 0.2],   // height increased 0.02 → 0.08 (centre stays at Y=0.3)
     color: '#d4c5b0',
   },
   {
@@ -52,7 +52,7 @@ export const DEFAULT_SCENE_OBJECTS: SceneObject[] = [
 ]
 
 export const DEFAULT_TARGET_ZONES: TargetZone[] = [
-  { id: 'zone-shelf',        name: 'Shelf Drop Zone',  position: [0.5, 0.32, 0],  radius: 0.08 },
+  { id: 'zone-shelf',        name: 'Shelf Drop Zone',  position: [0.5, 0.35, 0],  radius: 0.08 },
   { id: 'zone-drawer',       name: 'Drawer Zone',      position: [-0.4, 0.25, 0], radius: 0.1  },
   { id: 'zone-table-center', name: 'Table Center',     position: [0, 0.05, 0],    radius: 0.15 },
 ]

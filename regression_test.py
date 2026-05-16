@@ -19,7 +19,7 @@ except ImportError:
 
 # â”€â”€ Config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-API_KEY = "AIzaSyB68OLi1kJeaT3lnFpbRyKdkKDEf8PNwhU"
+API_KEY = "AIzaSyAGaouNAxcbJJ9RPpYni2DkRWFvy7Gw0gQ"
 MODEL   = "gemini-2.5-flash"
 PROMPT  = "Pick and Place Cylinder A on the shelf"
 

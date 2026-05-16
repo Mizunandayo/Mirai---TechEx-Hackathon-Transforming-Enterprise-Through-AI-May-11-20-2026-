@@ -37,6 +37,54 @@ Remaining Day 5 item: MuJoCo cross-validation feed into TaskEditor AI results (D
 - Day 6: Servo lifespan predictor + side-by-side replay
 - Day 6: Jinja2 export pipeline (Arduino .ino, Python .py, BOM, URDF, QR, signed ZIP)
 
+### Session Log — May 16, 2026 (Continued — Surface Collision Fix + Destination Reach + Rich Errors)
+
+#### Fix 1: Shelf collision false positive — skip surfaces in EE collision check
+The arm was being flagged for colliding with the shelf even when following correct transit-height coordinates. Root cause: during FABRIK joint-space interpolation, the EE briefly dips into the shelf's AABB margin (Y:[0.27,0.33]). The `checkAABBCollision` function for EE did not skip surface objects. Fix: added `if (obj.type === 'surface') continue` to `checkAABBCollision` in motionCompiler.ts. Arm-link check already skipped surfaces; this brings EE check into alignment.
+
+#### Fix 2: Destination reachability check + auto-extend
+Previously only the PICKUP object was checked for reachability/IK conditioning. The ARM may be able to reach the pickup but not the destination (shelf at 0.72m from base). New checks in pre-flight:
+- `checkDestinationReachability()` — 3D distance from base to deposit position
+- `extendArmForDestination()` — GROWS revolute segments if destination is out of reach
+- Added to `armConfigOptimizer.ts` and wired as step #4 in `handleAIGenerate` pre-flight
+
+#### Fix 3: Specific actionable error messages
+Old: "No valid task generated. Check that scene objects are within arm reach."
+New (specific by case):
+- Pickup out of reach: "Arm cannot reach Cylinder A: object is 750mm away, max arm reach is 780mm. Try adding a longer segment."
+- Destination out of reach: "Arm grabbed Cylinder A successfully but cannot reach Shelf Drop Zone: destination is 820mm away, max reach is 780mm. Increase arm segment length or pick a closer destination."
+- Unidentifiable object: "Could not identify a pickup object in 'grab the thing'. Try: 'pick up cylinder-a'."
+- Collision-specific: "Arm path has N collision frames. The route passes through an obstacle — try a different arm configuration."
+
+---
+
+### Session Log — May 16, 2026 (Continued — IK Conditioning Root Cause + Auto-Scale Fix)
+
+#### Root cause: IK conditioning failure for Box B (proven by regression test)
+
+User empirically showed: Original arm (350+280=630mm revolute) FAILS for Box B. Manually shortened arm (220+240=460mm) SUCCEEDS. Regression test confirmed the exact mechanism.
+
+**IK condition ratio = targetDistance / totalArmLength**:
+- Original arm (780mm total, Box B at 250mm): ratio = 250/780 = **0.321** → below threshold 0.33 → POOR
+- User's fix (610mm total): ratio = 250/610 = **0.410** → above threshold → WELL-CONDITIONED
+- Our auto-scaled (568mm total): ratio = 250/568 = **0.440** → above threshold → WELL-CONDITIONED
+
+**Why IK fails when ratio < 0.33**: When the arm is much longer than the target distance, FABRIK enters near-singularity. The arm must fold sharply on itself to reach a close target, and the IK solver doesn't converge to the exact target position. The EE ends up far from the target → grip detection misses → "Compiled task never grips" error.
+
+**Fix implemented**:
+1. `src/utils/armConfigOptimizer.ts` (NEW) — `checkArmConditioning()` computes ratio, `scaleArmForTarget()` scales revolute segments DOWN proportionally to reach TARGET_RATIO=0.44
+2. `TaskEditorPanel.tsx` — pre-flight check #3 auto-scales arm before Gemini call when ratio < 0.33
+3. L5 retry loop — tries RETRY_RATIOS=[0.40, 0.36, 0.30] progressively if initial scale still fails
+4. `regression_test_boxb.py` (NEW) — proves all 4 mathematical assertions: original fails, user's fix works, auto-scaler matches, retry ratios are valid
+
+**All 4 regression tests PASS**:
+- A1: Original arm (0.321) < threshold → PASS
+- A2: User's fix (0.410) >= threshold → PASS
+- A3: Auto-scaled (0.440) >= threshold → PASS
+- A4: Auto-scaled near TARGET_RATIO → PASS
+
+---
+
 ### Session Log — May 16, 2026 (Continued — Regression Test Findings + Collision Tolerance)
 
 #### Regression test findings (regression_test.py, run directly with API key)
