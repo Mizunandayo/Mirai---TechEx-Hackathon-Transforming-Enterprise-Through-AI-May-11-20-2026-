@@ -10,6 +10,7 @@ import SimViewer from './components/simulation/SimViewer'
 import SimulationPanel from './components/simulation/SimulationPanel'
 import ExportPanel from './components/export/ExportPanel'
 import CodePane from './components/simulation/CodePane'
+import CommunityBrowse from './components/community/CommunityBrowse'
 import { sideBySideModeAtom } from './store/mujocoAtoms'
 import { taskEdgesAtom, taskNameAtom, taskNodesAtom, sceneGraphAtom } from './store/taskAtoms'
 import { compiledPlanAtom, currentFrameAtom, playbackStatusAtom, simBaselineObjectStatesAtom } from './store/simAtoms'
@@ -195,21 +196,25 @@ function HeaderDust() {
 
 
 
-type NavItem = 'design' | 'tasks' | 'simulate' | 'export'
+type NavItem = 'design' | 'tasks' | 'simulate' | 'export' | 'library'
 const NAV_ITEMS: { id: NavItem; label: string }[] = [
-  { id: 'design', label: 'Design' },
-  { id: 'tasks', label: 'Tasks' },
+  { id: 'design',   label: 'Design' },
+  { id: 'tasks',    label: 'Tasks' },
   { id: 'simulate', label: 'Simulate' },
-  { id: 'export', label: 'Export' },
+  { id: 'export',   label: 'Export' },
+  { id: 'library',  label: 'Library' },
 ]
 
-const STEP_MAP: Record<NavItem, number> = { design: 1, tasks: 2, simulate: 3, export: 4 }
+const STEP_MAP: Record<NavItem, number> = {
+  design: 1, tasks: 2, simulate: 3, export: 4, library: 0,
+}
 
 const STATUS_MAP: Record<NavItem, string> = {
-  design: 'arm designer active',
-  tasks: 'task editor active',
+  design:   'arm designer active',
+  tasks:    'task editor active',
   simulate: 'physics simulation',
-  export: 'export pipeline',
+  export:   'export pipeline',
+  library:  'task library',
 }
 
 export default function App() {
@@ -239,7 +244,7 @@ function handleNavClick(nav: NavItem) {
     setPanelOpen((o) => !o)
   } else {
     setActiveNav(nav)
-    setPanelOpen(nav !== 'export')
+    setPanelOpen(nav !== 'export' && nav !== 'library')
   }
 }
 
@@ -297,7 +302,11 @@ function handleNavClick(nav: NavItem) {
         </div>
 
         <div className="hdr-right" style={{ position: 'relative', zIndex: 1 }}>
-          <span className="hdr-step">Step {STEP_MAP[activeNav]} of 4</span>
+          <span className="hdr-step">
+            {STEP_MAP[activeNav] > 0
+              ? `Step ${STEP_MAP[activeNav]} of 4`
+              : 'Library'}
+          </span>
           <button
             className={`hdr-mode${isAdvanced ? ' hdr-mode--detailed' : ''}`}
             onClick={() => setIsAdvanced(!isAdvanced)}
@@ -325,11 +334,19 @@ function handleNavClick(nav: NavItem) {
         {/* Export panel — full-width, replaces the 3D viewport area */}
         {activeNav === 'export' && <ExportPanel />}
 
+        {/* Library panel — full-width, no 3D viewport, like Export */}
+        {activeNav === 'library' && (
+          <CommunityBrowse onImport={() => {
+            setActiveNav('tasks')
+            setPanelOpen(true)
+          }} />
+        )}
+
         {/* 3D viewport — display:none on Export tab preserves WebGL contexts
             (ArmViewer + SimViewer stay mounted, no context loss on return) */}
         <main
           className={`viewport-wrapper${activeNav === 'simulate' ? ' viewport-wrapper--simulate' : ''}`}
-          style={{ display: activeNav === 'export' ? 'none' : undefined }}
+          style={{ display: (activeNav === 'export' || activeNav === 'library') ? 'none' : undefined }}
         >
           {/* Tasks canvas — unmounts cleanly (no WebGL) */}
           {activeNav === 'tasks' && <TaskFlowCanvas />}

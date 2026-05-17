@@ -14,15 +14,15 @@ import GripperLibrary from './GripperLibrary'
 import ValidationPanel from './ValidationPanel'
 import BOMCounter from './BOMCounter'
 import NLArmDesigner from './NLArmDesigner'
+import RobotPresetSelector from './RobotPresetSelector'
 
-
-
-type Tab = 'segments' | 'gripper' | 'validate'
+type Tab = 'segments' | 'gripper' | 'validate' | 'presets'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'segments', label: 'Arm' },
-  { id: 'gripper', label: 'Tool' },
+  { id: 'gripper',  label: 'Tool' },
   { id: 'validate', label: 'Review' },
+  { id: 'presets',  label: 'Presets' },
 ]
 
 const PANEL_MIN_WIDTH = 336
@@ -190,8 +190,9 @@ export default function ArmDesignerPanel({
       {/* Scrollable tab content */}
       <div className="panel-content" role="tabpanel">
         {activeTab === 'segments' && <SegmentList />}
-        {activeTab === 'gripper' && <GripperLibrary />}
+        {activeTab === 'gripper'  && <GripperLibrary />}
         {activeTab === 'validate' && <ValidationPanel />}
+        {activeTab === 'presets'  && <RobotPresetSelector />}
       </div>
 
       {/* Footer: BOM */}

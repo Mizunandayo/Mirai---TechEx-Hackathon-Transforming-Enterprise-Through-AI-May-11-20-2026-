@@ -7,7 +7,7 @@ import type { ArmSegment, GripperConfig } from '../types/arm';
 
 /** Persited in Localstorage - survives page refresh**/
 export const isAdvancedModeAtom = atomWithStorage<boolean>('mirai_advanced_mode', false)
-export const activeDesignerTabAtom = atom<'segments' | 'gripper' |'validate'>('segments')
+export const activeDesignerTabAtom = atom<'segments' | 'gripper' | 'validate' | 'presets'>('segments')
 export const showReachEnvelopeAtom = atomWithStorage<boolean>('mirai_show_reach_v2', false)
 export const showJointArcsAtom = atomWithStorage<boolean>('mirai_show_arcs_v2', false)
 

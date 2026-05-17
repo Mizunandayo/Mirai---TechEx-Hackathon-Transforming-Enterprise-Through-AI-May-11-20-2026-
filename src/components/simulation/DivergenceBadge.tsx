@@ -1,4 +1,3 @@
-import React from "react"
 import type { DivergenceSummary } from "../../types/mujoco"
 
 

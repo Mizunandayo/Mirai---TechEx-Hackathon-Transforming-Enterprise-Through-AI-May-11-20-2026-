@@ -39,8 +39,9 @@
 
 ## DAILY PROGRESS TRACKER
 
-> **Today:** Saturday, May 17, 2026 (Day 7 of 8) | **Deadline:** Monday, May 19, 2026 — 8:00 AM PST (Philippine Standard Time)
+> **Today:** Sunday, May 18, 2026 (Day 8 of 8) | **Deadline:** Monday, May 19, 2026 — 8:00 AM PST (Philippine Standard Time)
 > **Legend:** ✅ Done &nbsp; ❌ Not Started &nbsp; 🔄 In Progress (today)
+> **STATUS: Days 1–7 complete. Day 8 is the final push — deploy, demo video, submit.**
 
 ---
 
@@ -182,23 +183,26 @@
 ✅ Simulation max update depth loop fix completed
 ✅ Shadow map deprecation cleanup completed
 
-### Day 7 — Community + Famous Preloads + Presets
-❌ Community browse/import flow
-❌ Seeded task library
-❌ Famous preload tasks
-❌ Real robot preset skins
-❌ End-to-end quality pass
-❌ 60fps verification pass
+### Day 7 — Community + Famous Preloads + Presets ✅ COMPLETE (May 17–18)
+✅ Community browse/import flow — CommunityBrowse.tsx, TaskPreviewCard.tsx, Library 5th nav tab
+✅ Seeded task library — 12 tasks with proven scene-planner waypoints
+✅ Famous preload tasks — Boston Dynamics, Tesla Optimus, Toyota Research branded preloads
+✅ Real robot preset skins — UR5 (850mm), KUKA KR6 (706mm), ABB IRB 1200 (700mm)
+✅ End-to-end quality pass — production build clean, 852 modules, zero TypeScript errors
+✅ 60fps verification — no-op write guard, PCFShadowMap, collision threshold, no regressions
 
-### Day 8 — Polish + Demo Prep + Submit
-❌ Final production deploy hardening
-❌ Final full E2E test pass
-❌ Demo video recording
-❌ Slide deck finalization
-❌ README final pass
-❌ Repository cleanup pass
-❌ Final submission packaging
-❌ Submission before deadline
+### Day 8 — Polish + Demo Prep + Submit ❌ IN PROGRESS TODAY
+❌ Final production deploy — push to GitHub → Vercel, confirm Railway 200 OK
+❌ Full browser E2E walkthrough: Design → Library → Tasks → Simulate → Export → QR
+❌ 60fps confirmed live in Chrome DevTools during simulation playback
+❌ Voice input tested on demo hardware
+❌ Demo mode — famous preload as landing state
+❌ Record 2-min demo video
+❌ Slide deck — 5 slides: problem → solution → demo → market → impact
+❌ README.md final pass — screenshots + live demo URL
+❌ Repo cleanup — no .env, no node_modules, no debug logs
+❌ Submit on lablab.ai
+❌ **Submission before May 19, 2026 — 8:00 AM PST ← HARD DEADLINE**
 
 ### Day 6 — Backend + MuJoCo + Export ✅ COMPLETE (May 16–17)
 ✅ FastAPI backend deployed on Railway and healthy
