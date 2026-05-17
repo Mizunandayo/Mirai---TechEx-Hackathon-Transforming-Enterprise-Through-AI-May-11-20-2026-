@@ -972,6 +972,7 @@ async def export_bundle(request: Request, payload: BundleRequest):
 
     from datetime import datetime, timezone
     import re
+    from urllib.parse import quote
     generated_at = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
 
     # Placeholder SHA256 (will be replaced by bundle.py with real hash)
@@ -989,7 +990,14 @@ async def export_bundle(request: Request, payload: BundleRequest):
     urdf_xml = generate_urdf(payload.arm)
 
     # 4. QR
-    live_url = payload.live_url or f'https://mirai-demo.vercel.app/?task={payload.task.task_name}'
+    frontend_base = (
+        payload.live_url
+        or os.getenv('MIRAI_FRONTEND_URL')
+        or request.headers.get('origin')
+        or 'https://mirai-tech-ex-hackathon-transformin.vercel.app'
+    )
+    encoded_task = quote(payload.task.task_name, safe='')
+    live_url = f"{frontend_base.rstrip('/')}/?task={encoded_task}"
     qr_png   = generate_qr(live_url, payload.task.task_name)
 
     # 5. Bundle → real SHA-256

@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import re
 import zipfile
 from datetime import datetime, timezone
 
@@ -56,7 +57,9 @@ def create_bundle(
         └── manifest.json
     """
     generated_at = datetime.now(timezone.utc).isoformat()
-    slug = task_name.lower().replace(" ", "_").replace("/", "_")[:32] or "mirai_task"
+    # Keep archive paths Windows-safe: ASCII letters/digits/underscore/hyphen only.
+    safe_slug = re.sub(r"[^a-z0-9_-]+", "_", task_name.lower()).strip("_-")[:32]
+    slug = safe_slug or "mirai_task"
 
     # Collect all files (name → bytes)
     files: dict[str, bytes] = {

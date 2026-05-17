@@ -39,7 +39,7 @@
 
 ## DAILY PROGRESS TRACKER
 
-> **Today:** Friday, May 16, 2026 (Day 6 of 8) | **Deadline:** Monday, May 19, 2026 — 8:00 AM PST (Philippine Standard Time)
+> **Today:** Saturday, May 17, 2026 (Day 7 of 8) | **Deadline:** Monday, May 19, 2026 — 8:00 AM PST (Philippine Standard Time)
 > **Legend:** ✅ Done &nbsp; ❌ Not Started &nbsp; 🔄 In Progress (today)
 
 ---
@@ -116,8 +116,31 @@
 ✅ Simulation playback compile path hardened: live scene-sync updates no longer trigger mid-run recompile/reset while transport is active
 ✅ Playback reset now restores simulation objects to compile-time baseline positions when returning to frame 0
 ✅ Frame-0 reset now restores full object state (pose + velocity reset), ensuring cylinders and dynamic bodies return to original standing state
-❌ MuJoCo-backed validation merged into TaskEditor AI result pipeline (pending Day 6)
+✅ MuJoCo-backed validation merged into TaskEditor AI result pipeline (complete Day 6)
 ✅ Direct Gemini API from browser (VITE_GEMINI_API_KEY, gemini-2.5-flash, 5-15s vs 4-6min Vertex AI)
+
+### Day 6 — Backend + MuJoCo + Export ✅ COMPLETE (May 16–17)
+✅ FastAPI backend deployed on Railway and healthy
+✅ WebSocket `/ws/simulate` streaming MuJoCo validation frames
+✅ MuJoCo MJCF/URDF builder from arm config
+✅ Task executor consumes same ExecutionPlan as Rapier
+✅ MuJoCo validator and accuracy badge ("94% accurate")
+✅ Confidence report derived from validation + rule checks
+✅ Side-by-side Rapier vs. MuJoCo replay with divergence frames highlighted in red
+✅ Servo lifespan predictor (torque data → predicted hours per joint)
+✅ Jinja2 deterministic code generation: Arduino `.ino` and Python `.py` templates (NOT LLM)
+✅ BOM generator from arm config with AliExpress/Amazon pricing
+✅ URDF export (ROS2-compatible)
+✅ QR code generator with live frontend origin detection
+✅ Signed export with SHA-256 hash headers
+✅ ZIP bundle with code + BOM + wiring diagram + URDF + QR + manifest
+✅ Export pipeline fully working: `/export/preview`, `/export/bundle`, `/export/code`, `/export/bom`, `/export/urdf`
+✅ Python export template created: `server/export/templates/python_control.py.j2`
+✅ Bundle filename sanitization (ASCII-safe slug for HTTP headers)
+✅ Bundle ZIP internal paths sanitized (Windows extraction-safe, fixes 0x80070057 error)
+✅ QR URLs now use live frontend domain instead of deprecated mirai-demo.vercel.app
+✅ Live deployment verified: Vercel (200 OK), Railway (200 OK + Gemini key loaded)
+❌ Day 7 tasks not started
 ✅ Model auto-fallback: gemini-2.5-flash → 2.0-flash → 1.5-flash on 404/deprecated errors
 ✅ scenePlanner.ts — single source of truth for collision-free waypoint geometry
 ✅ normalizeTaskCoordinates — post-processes Gemini output with scene-planner safe coords

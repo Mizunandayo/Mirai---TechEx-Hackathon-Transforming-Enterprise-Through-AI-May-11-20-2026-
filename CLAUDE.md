@@ -51,11 +51,11 @@ Browser-based AI-powered robot arm simulator that makes robotics accessible to e
 | 3 | May 13 | Task Editor (React Flow) | ✅ **COMPLETE** — All 14 files created, 7 node types, palette, canvas, deletable edges, validation, Ctrl+S export, Ctrl+Z undo, TypeScript clean |
 | 4 | May 14 | Physics Simulation (Rapier) | ✅ **COMPLETE** — Sim pipeline finalized with arm-link collision detection, segment rigid bodies, revolute/prismatic constraints, and collision flash polish |
 | 5 | May 15–16 | Gemini AI Integration | ✅ **COMPLETE** — Direct Gemini API (5-15s), scene planner, IK auto-scale, arm auto-config, volumetric collision detection, obstacle-aware routing, feasibility analysis, AI Results UI redesign |
-| 6 | May 16–17 | Backend + MuJoCo + Export | ⏳ Ready to Start |
+| 6 | May 16–17 | Backend + MuJoCo + Export | ✅ **COMPLETE** — All export endpoints live, bundle fixes (template/sanitization/QR), Railway + Vercel deployed and healthy |{6}
 | 7 | May 17 | Community + Famous Preloads | ⏳ Ready to Start |
 | 8 | May 18–19 | Polish + Demo Prep + Submit | ⏳ Ready to Start |
 
-**STATUS:** Days 1–5 complete. Day 6 starts next.
+**STATUS:** Days 1–6 complete. Day 7 in progress.
 
 ---
 
@@ -154,6 +154,15 @@ Browser-based AI-powered robot arm simulator that makes robotics accessible to e
 ✅ MAX_LINK_SWEEP_COLLISIONS 80 → 150 (wider volumetric radii)
 ✅ Shelf height: dimensions[1] 0.02 → 0.08m (position unchanged); zone-shelf Y: 0.32 → 0.35
 ✅ regression_test.py + regression_test_boxb.py added
+
+**Added May 17, 2026 (Day 6 completion — Export Pipeline Fixes):**
+✅ server/export/templates/python_control.py.j2 — missing Python code template created (matches Arduino template style)
+✅ server/main.py export_bundle slug sanitization — ASCII-safe filename for Content-Disposition header (fixes UnicodeEncodeError)
+✅ server/export/bundle.py slug sanitization — ASCII-safe zip entry paths (Windows extraction-safe, fixes 0x80070057)
+✅ server/main.py QR URL generator — uses live frontend origin instead of dead mirai-demo.vercel.app fallback
+✅ QR URL now respects MIRAI_FRONTEND_URL env var or request origin for dynamic deployment URLs
+✅ Live deployment verification: both Vercel (https://mirai-tech-ex-hackathon-transformin.vercel.app) and Railway (production.up.railway.app) confirmed 200 OK and healthy
+✅ Old QR links pointing to mirai-demo.vercel.app confirmed 404 DEPLOYMENT_NOT_FOUND — QR fix prevents future link rot
 
 **Immediate Next: Day 7 — Community + Famous Preloads + Presets**
 - 🔜 Add community browse/import flow + seeded task library

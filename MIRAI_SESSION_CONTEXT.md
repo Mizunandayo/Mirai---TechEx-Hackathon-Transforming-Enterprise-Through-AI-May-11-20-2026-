@@ -98,6 +98,47 @@ User empirically showed: Original arm (350+280=630mm revolute) FAILS for Box B. 
 - Input validation and schema checks for all MuJoCo endpoints
 - Rate limiting and origin checks on backend
 - Resource/time limits for MuJoCo simulation
+
+### Session Log — May 17, 2026 (Continued — Export Pipeline Debugging & Fixes)
+
+**Issue 1: Missing Python Export Template**
+- Problem: `/export/preview` POST request returned 500 with `jinja2.exceptions.TemplateNotFound: python_control.py.j2`
+- Root cause: `server/export/code_generator.py` calls `_env.get_template("python_control.py.j2")` but template file was not in `server/export/templates/` (only `arduino.ino.j2` existed)
+- Fix: Created `server/export/templates/python_control.py.j2` with deterministic Python code generation matching Arduino template structure
+- Validation: Local test confirmed template renders without error
+
+**Issue 2: Bundle Download Header Encoding Error (UnicodeEncodeError)**
+- Problem: `/export/bundle` POST request returned 500 with `UnicodeEncodeError: 'latin-1' codec can't encode character '\u2192'` at Content-Disposition header
+- Root cause: Task names with non-ASCII characters (Unicode arrow `→`, colons `:`, etc.) were passed directly to HTTP response headers, but Starlette Response headers can only encode latin-1 characters
+- Fix: Added slug sanitization in `server/main.py` export_bundle function: `re.sub(r'[^a-z0-9_-]+', '_', task_name.lower()).strip('_-')[:32]` converts any task name to ASCII-safe filename for Content-Disposition header
+- Validation: Python test confirms slug converts "Pick & Place: Box B → Drawer Zone" to "pick_place_box_b_drawer_zone"
+
+**Issue 3: Bundle ZIP Internal Paths Contain Non-ASCII Characters**
+- Problem: User's extracted ZIP showed corrupted filenames with invalid Windows characters (`:`, `→`, etc.); Windows extraction error 0x80070057 ("The parameter is incorrect")
+- Root cause: `server/export/bundle.py` create_bundle() function was using raw task_name for zip entry paths (e.g., `pick_&_place:_box_b_→_drawer_zone/...`), which are invalid in Windows
+- Fix: Applied same ASCII sanitization to zip slug in `server/export/bundle.py`: `re.sub(r"[^a-z0-9_-]+", "_", task_name.lower()).strip("_-")[:32]`
+- Validation: Local zipfile test confirms all entry names are now ASCII-safe (e.g., `pick_place_box_b_drawer_zone/pick_place_box_b_drawer_zone.ino`)
+
+**Issue 4: QR Code Points to Dead Deployment Domain**
+- Problem: Generated QR codes embedded hardcoded URL `https://mirai-demo.vercel.app/?task=...` which returns 404 DEPLOYMENT_NOT_FOUND (Vercel killed that old deployment)
+- Root cause: Fallback in `export_bundle()` used static deprecated URL instead of live domain
+- Fix: Updated QR URL generation in `server/main.py`:
+  1. Respect payload.live_url if provided
+  2. Fall back to MIRAI_FRONTEND_URL env var if set
+  3. Fall back to request.headers['origin'] (dynamic origin detection)
+  4. Final fallback to current active Vercel domain: `https://mirai-tech-ex-hackathon-transformin.vercel.app`
+- Also added URL encoding for task name to prevent special characters in query string
+- Validation: Live curl tests confirmed both Vercel and Railway domains return 200 OK
+
+**Deployment Status Summary**
+- Vercel frontend (`https://mirai-tech-ex-hackathon-transformin.vercel.app`) — ✅ 200 OK, healthy
+- Railway backend (`https://mirai-techex-hackathon-transforming-enterprise-production.up.railway.app/health`) — ✅ 200 OK, Gemini key loaded
+- Old mirai-demo.vercel.app — ❌ 404 DEPLOYMENT_NOT_FOUND (expected after QR migration)
+
+**Files Modified**
+- Created: `server/export/templates/python_control.py.j2`
+- Modified: `server/main.py` (slug sanitization + QR URL logic)
+- Modified: `server/export/bundle.py` (slug sanitization for zip paths)
 - Signed export (SHA-256) for all generated code/BOM files
 - Browser security headers enforced
 
