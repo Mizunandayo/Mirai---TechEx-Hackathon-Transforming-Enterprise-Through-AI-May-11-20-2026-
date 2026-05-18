@@ -25,7 +25,7 @@
 ### Day 8 priority order
 1. Push to GitHub → auto-deploy to Vercel
 2. Confirm Railway backend still healthy
-3. Run full browser E2E: Design → Library → Tasks → Simulate → Export → QR scan
+3. Run full browser E2E: Design → Library → Tasks → Simulate → Export
 4. Demo mode: pre-load a famous task as landing state
 5. Record 2-min demo video
 6. Write 5-slide deck
@@ -219,13 +219,11 @@ All three pending items are now either implemented in code or fully guided for t
 ✅ Deterministic Python export completed
 ✅ BOM export generation completed
 ✅ URDF export completed
-✅ QR generation flow completed
 ✅ Signed export with SHA-256 completed
 ✅ ZIP bundle packaging completed
 ✅ Python template missing-file fix completed
 ✅ Content-Disposition filename sanitization completed
 ✅ ZIP entry path sanitization completed
-✅ QR domain fallback fix completed
 ✅ Live deployment health verification completed
 ✅ Review panel regression restore completed
 ✅ AI Fix upgraded to multi-step auto-config logic
@@ -323,7 +321,7 @@ Remaining Day 5 item: MuJoCo cross-validation feed into TaskEditor AI results (D
 ### Next recommended focus (as of this session start)
 - Day 6: Railway deploy + MuJoCo WS pipeline + Rapier vs MuJoCo accuracy badge
 - Day 6: Servo lifespan predictor + side-by-side replay
-- Day 6: Jinja2 export pipeline (Arduino .ino, Python .py, BOM, URDF, QR, signed ZIP)
+- Day 6: Jinja2 export pipeline (Arduino .ino, Python .py, BOM, URDF, signed ZIP)
 
 ### Session Log — May 16, 2026 (Continued — Surface Collision Fix + Destination Reach + Rich Errors)
 
@@ -380,7 +378,7 @@ User empirically showed: Original arm (350+280=630mm revolute) FAILS for Box B. 
 **Contract changes**
 - Added: WebSocket `/ws/simulate` (browser sends `ExecutionPlan`, receives MuJoCo validation frames, divergence metrics, lifespan prediction)
 - MuJoCo and Rapier now both consume the same `ExecutionPlan` schema for validation and playback
-- Export pipeline now produces signed ZIP bundle with code, BOM, URDF, QR, and SHA-256 hash
+- Export pipeline now produces signed ZIP bundle with code, BOM, URDF, and SHA-256 hash
 
 **Security changes**
 - Input validation and schema checks for all MuJoCo endpoints
@@ -407,25 +405,13 @@ User empirically showed: Original arm (350+280=630mm revolute) FAILS for Box B. 
 - Fix: Applied same ASCII sanitization to zip slug in `server/export/bundle.py`: `re.sub(r"[^a-z0-9_-]+", "_", task_name.lower()).strip("_-")[:32]`
 - Validation: Local zipfile test confirms all entry names are now ASCII-safe (e.g., `pick_place_box_b_drawer_zone/pick_place_box_b_drawer_zone.ino`)
 
-**Issue 4: QR Code Points to Dead Deployment Domain**
-- Problem: Generated QR codes embedded hardcoded URL `https://mirai-demo.vercel.app/?task=...` which returns 404 DEPLOYMENT_NOT_FOUND (Vercel killed that old deployment)
-- Root cause: Fallback in `export_bundle()` used static deprecated URL instead of live domain
-- Fix: Updated QR URL generation in `server/main.py`:
-  1. Respect payload.live_url if provided
-  2. Fall back to MIRAI_FRONTEND_URL env var if set
-  3. Fall back to request.headers['origin'] (dynamic origin detection)
-  4. Final fallback to current active Vercel domain: `https://mirai-tech-ex-hackathon-transformin.vercel.app`
-- Also added URL encoding for task name to prevent special characters in query string
-- Validation: Live curl tests confirmed both Vercel and Railway domains return 200 OK
-
 **Deployment Status Summary**
 - Vercel frontend (`https://mirai-tech-ex-hackathon-transformin.vercel.app`) — ✅ 200 OK, healthy
 - Railway backend (`https://mirai-techex-hackathon-transforming-enterprise-production.up.railway.app/health`) — ✅ 200 OK, Gemini key loaded
-- Old mirai-demo.vercel.app — ❌ 404 DEPLOYMENT_NOT_FOUND (expected after QR migration)
 
 **Files Modified**
 - Created: `server/export/templates/python_control.py.j2`
-- Modified: `server/main.py` (slug sanitization + QR URL logic)
+- Modified: `server/main.py` (slug sanitization for export)
 - Modified: `server/export/bundle.py` (slug sanitization for zip paths)
 - Signed export (SHA-256) for all generated code/BOM files
 - Browser security headers enforced
@@ -851,9 +837,9 @@ Gemini always runs (required for Gemini Award). Scene planner post-processes Gem
 ✅ Natural language arm designer guide delivered (armNLDesigner.ts, NLArmDesigner.tsx)
 
 ### Day 6 — Backend + MuJoCo + Export ✅ COMPLETE
-✅ Railway + Vercel live, MuJoCo WS, full export pipeline, signed ZIP, QR fix
+✅ Railway + Vercel live, MuJoCo WS, full export pipeline, signed ZIP
 
-### Day 7 — Community + Preloads + Presets ✅ COMPLETE (May 17–18)
+### Day 7 — Community + Famous Preloads + Presets ✅ COMPLETE (May 17–18)
 ✅ Community browse/import flow — 12 seeded tasks, Library 5th nav tab
 ✅ Famous preload tasks — Boston Dynamics, Tesla Optimus, Toyota Research
 ✅ Real robot preset skins — UR5, KUKA KR6, ABB IRB 1200
@@ -921,7 +907,7 @@ Gemini always runs (required for Gemini Award). Scene planner post-processes Gem
 | `src/components/task-editor/nodes/LoopNode.tsx` | ✅ Repeat count stepper; delete |
 | `src/components/task-editor/nodes/IfNode.tsx` | ✅ Condition input, then/else handles; delete |
 | `src/components/simulation/SceneObjects.tsx` | ✅ Rapier bodies + held-object pinning + approach-target freeze + frame-0 reset |
-| `src/components/simulation/SimulatedArm.tsx` | ✅ FK-driven nested articulation + kinematic gripper collider + hover/drag teach interaction hooks |
+| `src/components/simulation/SimulatedArm.tsx` | ✅ FK-driven nested articulation + kinematic Rapier sphere + hover/drag teach interaction hooks |
 | `src/components/simulation/PathTrail.tsx` | ✅ End-effector trail rendering |
 | `src/components/simulation/SimViewer.tsx` | ✅ Canvas + playback engine + camera focus/reset + manual teach/PTP overlay controls + editable live XYZ + PTP Play-all sequence + playback/teach interlocks |
 | `src/components/simulation/PlaybackControls.tsx` | ✅ Compile/transport/speed + loop + skip-collision toggles + redesigned layout + disabled during PTP sequence + header shows loaded task metadata name |
@@ -1091,4 +1077,4 @@ Days 1–5 complete. Remaining: Day 6 (MuJoCo + export), Day 7 (community + prel
 ---
 
 ## Security Note
-⚠️ `GEMINI_API_KEY` is in `backend/.env` — `.gitignore` covers `.env` files. **DO NOT COMMIT.**
+⚠️ `GEMINI_API_KEY` is in `backend/.env` — `.gitignore` covers `.env` files. **DO NOT COMMIT.

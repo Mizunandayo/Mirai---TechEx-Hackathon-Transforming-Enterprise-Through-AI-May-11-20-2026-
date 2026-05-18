@@ -8,7 +8,7 @@ const STEPS = [
   { n:'3', title:'Describe your task to Gemini', chip:'Tasks · Gemini', img:'Task Editor — AI input + ReAct trace' },
   { n:'4', title:'Watch AI Results',      chip:'AI Results',          img:'Confidence %, Physics tab, MuJoCo 94%' },
   { n:'5', title:'Auto-sim at 60fps',     chip:'Simulate tab',        img:'Simulation viewport — path trail' },
-  { n:'6', title:'Download + scan QR',    chip:'Export · QR',         img:'Export panel — ZIP + QR code' },
+  { n:'6', title:'Download code + BOM',    chip:'Export · ZIP',         img:'Export panel — ZIP + URDF' },
 ]
 
 export default function Demo() {
@@ -38,7 +38,7 @@ export default function Demo() {
         {/* YouTube embed — set videoId prop when ready */}
         <Reveal delay={3}>
           <div className="mb-12">
-            <YouTubePlaceholder title="Mirai — Full Demo: Design → Voice → Simulate → Export → QR (2 min)" />
+            <YouTubePlaceholder title="Mirai — Full Demo: Design → Voice → Simulate → Export (2 min)" />
           </div>
         </Reveal>
 

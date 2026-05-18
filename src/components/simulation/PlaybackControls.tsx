@@ -163,6 +163,13 @@ export default function PlaybackControls() {
     setStatus('playing')
   }, [plan, ptpSequencePlaying, setFrame, setStatus])
 
+  // When playback finishes naturally, trigger the same scene reset as the reset
+  // button — restores all objects to DEFAULT_SCENE_OBJECTS positions.
+  useEffect(() => {
+    if (status !== 'complete') return
+    setSceneResetTrigger((n) => n + 1)
+  }, [status, setSceneResetTrigger])
+
   const handlePlay = () => {
     if (!plan) return
     if (status === 'complete') setFrame(0)

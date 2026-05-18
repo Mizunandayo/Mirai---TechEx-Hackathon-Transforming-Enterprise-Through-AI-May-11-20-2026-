@@ -8,7 +8,7 @@ const STEPS = [
   { n:'03', name:'Plan',     sub:'ReAct reasoning loop',   tech:'Scene Planner', color:'#a78bfa', icon:<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><circle cx="10" cy="10" r="7"/><path d="M10 7v3l2 2"/></svg> },
   { n:'04', name:'Verify',   sub:'Preflight safety check', tech:'Deterministic verifier', color:'#fbbf24', icon:<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M3 10l5 5 9-9"/></svg> },
   { n:'05', name:'Simulate', sub:'60fps physics playback', tech:'Rapier WASM + MuJoCo', color:'#34d399', icon:<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><polygon points="5,4 17,10 5,16"/></svg> },
-  { n:'06', name:'Export',   sub:'Code + BOM + QR',        tech:'Jinja2 · Signed ZIP', color:'#fb7185', icon:<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M10 13V5M7 10l3 3 3-3"/><path d="M5 16h10"/></svg> },
+  { n:'06', name:'Export',   sub:'Code + BOM + URDF',        tech:'Jinja2 · Signed ZIP', color:'#fb7185', icon:<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M10 13V5M7 10l3 3 3-3"/><path d="M5 16h10"/></svg> },
 ]
 
 export default function Workflow() {

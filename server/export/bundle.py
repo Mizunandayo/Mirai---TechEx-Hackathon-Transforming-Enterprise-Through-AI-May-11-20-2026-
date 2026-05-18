@@ -41,7 +41,6 @@ def create_bundle(
     bom_csv: str,
     bom_json: dict,
     urdf_xml: str,
-    qr_png: bytes,
 ) -> tuple[bytes, str]:
     """
     Build a signed ZIP and return (zip_bytes, sha256_hex).
@@ -53,7 +52,6 @@ def create_bundle(
         ├── bom.csv
         ├── bom.json
         ├── robot.urdf
-        ├── qr_code.png
         └── manifest.json
     """
     generated_at = datetime.now(timezone.utc).isoformat()
@@ -68,7 +66,6 @@ def create_bundle(
         f"{slug}/bom.csv":        bom_csv.encode(),
         f"{slug}/bom.json":       json.dumps(bom_json, indent=2).encode(),
         f"{slug}/robot.urdf":     urdf_xml.encode(),
-        f"{slug}/qr_code.png":    qr_png,
     }
 
     sha256 = _sha256_of_files(files)

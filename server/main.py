@@ -17,7 +17,6 @@ from fastapi.responses import Response
 from server.export.code_generator import generate_arduino, generate_python
 from server.export.bom_generator   import generate_bom, bom_to_csv
 from server.export.urdf_generator  import generate_urdf
-from server.export.qr_generator    import generate_qr
 from server.export.bundle          import create_bundle
 from server.models.export_schemas  import BundleRequest
 from fastapi import WebSocket, WebSocketDisconnect
@@ -948,7 +947,7 @@ async def suggest_motion_improvements(request: Request, payload: SuggestRequest)
 async def export_bundle(request: Request, payload: BundleRequest):
     """
     Generate and return a signed ZIP bundle containing:
-      .ino, .py, bom.csv, bom.json, robot.urdf, qr_code.png, manifest.json
+      .ino, .py, bom.csv, bom.json, robot.urdf, manifest.json
     """
     ip = request.client.host if request.client else 'unknown'
     if not allow_request(ip):
@@ -960,8 +959,6 @@ async def export_bundle(request: Request, payload: BundleRequest):
         raise HTTPException(status_code=400, detail='Too many waypoints')
 
     from datetime import datetime, timezone
-    import re
-    from urllib.parse import quote
     generated_at = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
 
     # Placeholder SHA256 (will be replaced by bundle.py with real hash)
@@ -978,18 +975,7 @@ async def export_bundle(request: Request, payload: BundleRequest):
     # 3. URDF
     urdf_xml = generate_urdf(payload.arm)
 
-    # 4. QR
-    frontend_base = (
-        payload.live_url
-        or os.getenv('MIRAI_FRONTEND_URL')
-        or request.headers.get('origin')
-        or 'https://mirai-tech-ex-hackathon-transformin.vercel.app'
-    )
-    encoded_task = quote(payload.task.task_name, safe='')
-    live_url = f"{frontend_base.rstrip('/')}/?task={encoded_task}"
-    qr_png   = generate_qr(live_url, payload.task.task_name)
-
-    # 5. Bundle → real SHA-256
+    # 4. Bundle → real SHA-256
     zip_bytes, sha256 = create_bundle(
         task_name  = payload.task.task_name,
         arm_name   = payload.arm.name,
@@ -998,7 +984,6 @@ async def export_bundle(request: Request, payload: BundleRequest):
         bom_csv    = bom_csv,
         bom_json   = bom_data,
         urdf_xml   = urdf_xml,
-        qr_png     = qr_png,
     )
 
     safe_slug = re.sub(r'[^a-z0-9_-]+', '_', payload.task.task_name.lower()).strip('_-')[:32]

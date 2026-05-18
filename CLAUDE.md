@@ -51,7 +51,7 @@ Browser-based AI-powered robot arm simulator that makes robotics accessible to e
 | 3 | May 13 | Task Editor (React Flow) | ✅ **COMPLETE** — All 14 files created, 7 node types, palette, canvas, deletable edges, validation, Ctrl+S export, Ctrl+Z undo, TypeScript clean |
 | 4 | May 14 | Physics Simulation (Rapier) | ✅ **COMPLETE** — Sim pipeline finalized with arm-link collision detection, segment rigid bodies, revolute/prismatic constraints, and collision flash polish |
 | 5 | May 15–17 | Gemini AI Integration | ✅ **COMPLETE** — Direct Gemini API (5-15s), scene planner, IK auto-scale, arm auto-config, volumetric collision detection, obstacle-aware routing, feasibility analysis, AI Results UI redesign + MuJoCo Physics tab + side-by-side code pane + NL arm designer |
-| 6 | May 16–17 | Backend + MuJoCo + Export | ✅ **COMPLETE** — All export endpoints live, bundle fixes (template/sanitization/QR), Railway + Vercel deployed and healthy |{6}
+| 6 | May 16–17 | Backend + MuJoCo + Export | ✅ **COMPLETE** — All export endpoints live, bundle fixes (template/sanitization), Railway + Vercel deployed and healthy |{6}
 | 7 | May 17–18 | Community + Famous Preloads | ✅ **COMPLETE** — 12 seeded tasks, 3 famous preloads, UR5/KUKA/ABB robot presets, Library nav tab, production build clean |
 | 8 | May 18–19 | Polish + Demo Prep + Submit | ⏳ Ready to Start |
 
@@ -183,13 +183,11 @@ Browser-based AI-powered robot arm simulator that makes robotics accessible to e
 ✅ Deterministic Python export completed
 ✅ BOM export generation completed
 ✅ URDF export completed
-✅ QR generation flow completed
 ✅ Signed export with SHA-256 completed
 ✅ ZIP bundle packaging completed
 ✅ Python template missing-file fix completed
 ✅ Content-Disposition filename sanitization completed
 ✅ ZIP entry path sanitization completed
-✅ QR domain fallback fix completed
 ✅ Live deployment health verification completed
 ✅ Review panel regression restore completed
 ✅ AI Fix upgraded to multi-step auto-config logic
@@ -225,11 +223,11 @@ Browser-based AI-powered robot arm simulator that makes robotics accessible to e
 
 #### Day 8 — Polish + Demo Prep + Submit ❌ PENDING
 ❌ Final production deploy — push to GitHub → Vercel auto-deploy, Railway backend confirm 200 OK
-❌ Full browser E2E: Design → Library → Tasks → Simulate → Export → QR scan
+❌ Full browser E2E: Design → Library → Tasks → Simulate → Export
 ❌ 60fps confirmed live in Chrome DevTools (FPS meter during simulation playback)
 ❌ Voice input tested on demo hardware + fallback confirmed
 ❌ Demo mode — famous preload pre-loaded as landing state
-❌ Record 2-min demo video (design → library import → voice → pre-flight → simulate → QR)
+❌ Record 2-min demo video (design → library import → voice → pre-flight → simulate → export)
 ❌ Slide deck — 5 slides: problem → solution → demo → market → impact
 ❌ README.md final pass — screenshots + live Vercel URL + Railway backend URL
 ❌ Repo cleanup — no .env committed, no node_modules, no debug console.log
@@ -261,10 +259,7 @@ Browser-based AI-powered robot arm simulator that makes robotics accessible to e
 ✅ server/export/templates/python_control.py.j2 — missing Python code template created (matches Arduino template style)
 ✅ server/main.py export_bundle slug sanitization — ASCII-safe filename for Content-Disposition header (fixes UnicodeEncodeError)
 ✅ server/export/bundle.py slug sanitization — ASCII-safe zip entry paths (Windows extraction-safe, fixes 0x80070057)
-✅ server/main.py QR URL generator — uses live frontend origin instead of dead mirai-demo.vercel.app fallback
-✅ QR URL now respects MIRAI_FRONTEND_URL env var or request origin for dynamic deployment URLs
 ✅ Live deployment verification: both Vercel (https://mirai-tech-ex-hackathon-transformin.vercel.app) and Railway (production.up.railway.app) confirmed 200 OK and healthy
-✅ Old QR links pointing to mirai-demo.vercel.app confirmed 404 DEPLOYMENT_NOT_FOUND — QR fix prevents future link rot
 
 **Added May 17, 2026 (Post-Day-6 Stabilization + BOM Parity Fixes):**
 ✅ Review tab regression fixed: full validation metrics/cards restored in `ValidationPanel.tsx`
@@ -299,8 +294,7 @@ Browser-based AI-powered robot arm simulator that makes robotics accessible to e
 ✅ Jinja2 code gen — Arduino `.ino` + Python `.py` templates (NOT LLM — deterministic)
 ✅ BOM generator from arm config with live AliExpress/Amazon pricing
 ✅ URDF export (ROS2-compatible)
-✅ QR code generator — scan → hosted BOM + code page instantly
-✅ Signed export — SHA-256 hash header in every downloaded file
+✅ **Signed export** — SHA-256 hash header in every downloaded file
 ✅ ZIP bundle — code + BOM + wiring diagram in one `.zip`
 
 **New files added (Day 6):**
@@ -565,11 +559,10 @@ Frontend:
 - ❌ Jinja2 code gen — Arduino `.ino` + Python `.py` templates (NOT LLM — deterministic)
 - ❌ BOM generator from arm config with live AliExpress/Amazon pricing
 - ❌ URDF export (ROS2-compatible)
-- ❌ **QR code generator** — scan → hosted BOM + code page instantly
 - ❌ **Signed export** — SHA-256 hash header in every downloaded file
 - ❌ ZIP bundle — code + BOM + wiring diagram in one `.zip`
 
-**Deliverable:** Dual physics live. Servo lifespan shown. Signed downloads. Judges scan QR on stage.
+**Deliverable:** Dual physics live. Servo lifespan shown. Signed downloads. Full export pipeline operational.
 
 ### Day 7 (May 17) — Community + Famous Preloads + Bonus
 
@@ -590,7 +583,7 @@ Frontend:
 - ❌ Demo moment: switch from custom builder view → KUKA mesh → same task plays on real geometry
 
 **Quality:**
-- ❌ Full E2E test: design → voice → pre-flight → simulate → side-by-side → export → QR
+- ❌ Full E2E test: design → voice → pre-flight → simulate → side-by-side → export
 - ❌ 60fps confirmed on mid-range hardware
 
 **Bonus (only if Day 5–6 ahead):**
@@ -612,7 +605,7 @@ Frontend:
 - ❌ Demo mode — "sock folding" pre-loaded as landing state
 
 **Submission:**
-- ❌ Record 2-min demo video (design → voice → pre-flight → simulate → side-by-side → QR)
+- ❌ Record 2-min demo video (design → voice → pre-flight → simulate → export)
 - ❌ Slide deck (5 slides: problem → solution → demo → market → impact)
 - ❌ README.md final pass — screenshots + live demo link
 - ❌ Repo cleanup — no `.env`, no `node_modules`, no debug logs
@@ -673,7 +666,7 @@ mirai/
     ├── store/
     │   ├── atoms.ts             # Jotai atoms: armSegments, armGripper, selectedSegmentId, isAdvancedMode, etc.
     │   ├── taskAtoms.ts         # taskNodes, taskEdges, pendingAddNode, ghostArmTarget, selectedNodeId
-    │   └── simAtoms.ts          # compiledPlan, playback state, frame/speed, loop and collision pause toggles
+    │   └── simAtoms.ts          # compiledPlan, playbackStatus, currentFrame, playbackSpeed, pathTrail (derived), `ptpSequencePlaying`
     ├── utils/
     │   ├── armPhysics.ts        # calculateMaxReach, calculateTorqueAtJoint, validateArm
     │   ├── bomPricing.ts        # calculateBOM, getTotalBOMCost (72-piece BOM)
@@ -683,7 +676,7 @@ mirai/
     │   ├── taskExport.ts        # exportTaskJson, parseTaskJson, loadTaskFromFile
     │   ├── forwardKinematics.ts # FK for serial arm
     │   ├── inverseKinematics.ts # FABRIK IK solver
-    │   └── motionCompiler.ts    # Task graph -> deterministic SimFrame[] compiler
+    │   └── motionCompiler.ts    # Task graph -> deterministic SimFrame[] compiler with collision + grip semantics
     └── components/
         ├── ArmViewer.tsx        # R3F Canvas, forwardRef, resetCamera(), lights, shadows, overlays
         ├── RobotArm.tsx         # Industrial arm: JointHousing, SegmentGroup (useFrame pulse), 3 gripper types
@@ -731,7 +724,7 @@ mirai/
 | Component | Status | Notes |
 |---|---|---|
 | package.json | ✅ Complete | All deps installed |
-| npm install | ✅ Done | `--legacy-peer-deps` (reactflow v12 / React 18 conflict) |
+| npm install | ✅ Done | `--legacy-peer-deps` (reactflow v12 / React 19 conflict) |
 | vite.config.js | ✅ Done | @tailwindcss/vite plugin, port 5173 strictPort |
 | tsconfig.json | ✅ Done | Strict mode |
 | tailwind.config.js | ✅ Done | |
@@ -793,8 +786,8 @@ Browser (React + Vite)
 ```
 
 ### Dual Physics Strategy
-- **Rapier (client):** 60fps real-time, interactive, instant feedback
-- **MuJoCo (server):** High-fidelity validation run after task is designed
+- **Rapier WASM in-browser:** 60fps with zero server latency — feels like a game engine
+- **MuJoCo server-side only:** Python-only, can't run in browser; used for validation not real-time
 - UI shows: `"Rapier ✅ 94% accurate | MuJoCo validated"`
 - Side-by-side replay: Rapier left, MuJoCo right, divergence frames in red
 
@@ -923,6 +916,6 @@ These rules apply to every component, every panel, every piece of UI in Mirai. T
 3. **Demo wow moments for judges:**
    - Speak a task aloud → arm moves in 3 seconds
    - Visible agent thinking sidebar (ReAct loop streaming live)
-   - Scan QR code on stage → BOM + code on phone instantly
+   - Download code + BOM → immediately buildable for under $300
    - Dual physics side-by-side replay with divergence highlighting
    - Servo lifespan predictor ("J2 will fail in ~180hrs at this load")

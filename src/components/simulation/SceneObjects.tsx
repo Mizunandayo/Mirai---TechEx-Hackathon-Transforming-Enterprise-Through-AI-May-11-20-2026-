@@ -13,7 +13,6 @@ import {
   currentSimFrameAtom,
   currentFrameAtom,
   simBaselineObjectStatesAtom,
-  playbackStatusAtom,
   sceneResetTriggerAtom,
   type SimObjectBaseline,
 } from '../../store/simAtoms'
@@ -100,7 +99,6 @@ export default function SceneObjects() {
   const frameNumber = useAtomValue(currentFrameAtom)
   const baselineObjectStates = useAtomValue(simBaselineObjectStatesAtom)
   const setBaselineObjectStates = useSetAtom(simBaselineObjectStatesAtom)
-  const playbackStatus = useAtomValue(playbackStatusAtom)
   const sceneResetTrigger = useAtomValue(sceneResetTriggerAtom)
 
   const frameRef = useRef(currentFrame)
@@ -178,44 +176,6 @@ export default function SceneObjects() {
       })
     }
   }, [frameNumber, baselineObjectStates, scene.objects, setSceneGraph])
-
-  // Explicit reset when playback reaches 'complete' status — ensures objects
-  // snap back to their original positions even if frame counter was already 0.
-  useEffect(() => {
-    if (playbackStatus !== 'complete') return
-
-    prevHeldIdRef.current = null
-    gripOffsetRef.current = [0, 0, 0]
-
-    for (const obj of scene.objects) {
-      const body = bodyRefs.current.get(obj.id)
-      if (!body) continue
-      const baseline = baselineObjectStates[obj.id]
-      const resetBaseline: SimObjectBaseline = baseline ?? {
-        position: obj.position,
-        rotation: [0, 0, 0, 1],
-        scale: obj.scale ?? [1, 1, 1],
-      }
-      const [x, y, z] = resetBaseline.position
-      const [qx, qy, qz, qw] = resetBaseline.rotation
-      body.setTranslation({ x, y, z }, true)
-      body.setRotation(new Quaternion(qx, qy, qz, qw), true)
-      body.setLinvel({ x: 0, y: 0, z: 0 }, true)
-      body.setAngvel({ x: 0, y: 0, z: 0 }, true)
-    }
-
-    setSceneGraph((prev) => {
-      let hasChanges = false
-      const nextObjects = prev.objects.map((obj) => {
-        const reset = baselineObjectStates[obj.id]
-        if (!reset) return obj
-        if (!tupleDiffers3(obj.position, reset.position)) return obj
-        hasChanges = true
-        return { ...obj, position: reset.position, scale: reset.scale }
-      })
-      return hasChanges ? { ...prev, objects: nextObjects } : prev
-    })
-  }, [playbackStatus, baselineObjectStates, scene.objects, setSceneGraph])
 
   // Explicit reset triggered by the K-button (reset) — fires unconditionally even
   // when frameNumber was already 0, because the trigger counter always increments.

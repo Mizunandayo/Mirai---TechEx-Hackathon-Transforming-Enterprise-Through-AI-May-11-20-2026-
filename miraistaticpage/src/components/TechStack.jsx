@@ -120,7 +120,7 @@ export default function TechStack() {
               <span className="si-feat-pill-mirai">5-15s planning</span>
               <span className="si-feat-pill-mirai">Dual physics</span>
               <span className="si-feat-pill-mirai">SHA-256 signed</span>
-              <span className="si-feat-pill-mirai">BOM + QR export</span>
+              <span className="si-feat-pill-mirai">BOM export</span>
             </div>
           </div>
         </Reveal>
