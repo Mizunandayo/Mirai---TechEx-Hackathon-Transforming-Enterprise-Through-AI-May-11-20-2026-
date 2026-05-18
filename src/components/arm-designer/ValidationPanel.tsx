@@ -70,7 +70,7 @@ function ValidationPanel() {
   const hasErrors = validation.errors.length > 0
   const hasWarnings = validation.warnings.length > 0
   const hasTargets = Boolean(targets)
-  const shouldShowFix = hasErrors || hasWarnings
+  const shouldShowFix = hasErrors
 
   const handleAutoConfigure = () => {
     const desiredReach = targets?.reachMeters
@@ -95,27 +95,16 @@ function ValidationPanel() {
 
     const nextTotalMass = nextSegments.reduce((sum, segment) => sum + segment.mass, 0)
     if (nextTotalMass > 3.95) {
-      const nonFixedCount = Math.max(1, nextSegments.filter((segment) => segment.joint !== 'fixed').length)
+      // Proportionally scale all segment masses down to the 3.9 kg target in one pass.
+      // Preserves mass ratios between segments instead of additive trimming per click.
       const targetMass = 3.9
-      const massReductionPerSegment = (nextTotalMass - targetMass) / nonFixedCount
+      const massFactor = targetMass / nextTotalMass
 
-      nextSegments = nextSegments.map((segment) => {
-        if (segment.joint === 'fixed') {
-          const lighterBaseMass = Math.max(1.2, Number((segment.mass * 0.88).toFixed(2)))
-          return {
-            ...segment,
-            mass: lighterBaseMass,
-            material: 'aluminum',
-          }
-        }
-
-        const lowered = Math.max(0.2, Number((segment.mass - massReductionPerSegment).toFixed(2)))
-        return {
-          ...segment,
-          mass: lowered,
-          material: 'carbon_fiber',
-        }
-      })
+      nextSegments = nextSegments.map((segment) => ({
+        ...segment,
+        mass: Math.max(segment.joint === 'fixed' ? 0.8 : 0.15, Number((segment.mass * massFactor).toFixed(2))),
+        material: segment.joint === 'fixed' ? 'aluminum' : 'carbon_fiber',
+      }))
     }
 
     let nextPeakTorque = 0
