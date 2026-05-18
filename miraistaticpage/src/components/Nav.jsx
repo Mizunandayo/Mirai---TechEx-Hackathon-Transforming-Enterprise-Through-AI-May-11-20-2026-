@@ -8,6 +8,9 @@ const LINKS = [
   { href:'#architecture',    label:'Architecture' },
   { href:'#features',        label:'Features' },
   { href:'#techstack',       label:'Stack' },
+  { href:'#market',          label:'Market' },
+  { href:'#revenue',         label:'Revenue' },
+  { href:'#roadmap',         label:'Roadmap' },   
   { href:'#demo',            label:'Demo' },
 ]
 
